@@ -200,7 +200,7 @@
         const { useState, useEffect, useRef } = React;
 
         // Recursive component for hierarchy tree
-        const HierarchyTree = ({ members, onDelete, isEditMode }) => {
+        const HierarchyTree = ({ members, onDelete, onEdit, isEditMode }) => {
             const [expandedNodes, setExpandedNodes] = useState({});
             const initialized = useRef(false);
 
@@ -289,12 +289,20 @@
                                     </div>
                                 </div>
                                 {isEditMode && (
-                                    <button
-                                        className="btn btn-sm btn-outline-danger"
-                                        onClick={() => onDelete(node.id)}
-                                    >
-                                        <i className="fas fa-trash-alt"></i>
-                                    </button>
+                                    <div>
+                                        <button
+                                            className="btn btn-sm btn-outline-info me-2"
+                                            onClick={() => onEdit(node)}
+                                        >
+                                            <i className="fas fa-edit"></i>
+                                        </button>
+                                        <button
+                                            className="btn btn-sm btn-outline-danger"
+                                            onClick={() => onDelete(node.id)}
+                                        >
+                                            <i className="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -393,6 +401,10 @@
             const [showTeamImportModal, setShowTeamImportModal] = useState(false);
             const [importedTeamData, setImportedTeamData] = useState([]);
             const [activeTab, setActiveTab] = useState('table');
+
+            // New states for editing members
+            const [showEditMemberModal, setShowEditMemberModal] = useState(false);
+            const [memberToEdit, setMemberToEdit] = useState(null);
 
             // Navigation functions
             const navigateTo = (view) => {
@@ -497,16 +509,18 @@
                 });
             };
 
-            const validateMemberForm = () => {
+            const validateMemberForm = (memberData, isEdit = false) => {
                 const errors = {};
                 const teamData = getCurrentTeamData();
 
-                if (!newMember.name) errors.name = 'Name is required';
-                if (!newMember.login) errors.login = 'Login ID is required';
-                if (!newMember.level) errors.level = 'Level is required';
+                if (!memberData.name) errors.name = 'Name is required';
+                if (!memberData.login) errors.login = 'Login ID is required';
+                if (!memberData.level) errors.level = 'Level is required';
 
-                const loginLower = newMember.login.toLowerCase();
-                const loginExists = teamData.some(m => m.login.toLowerCase() === loginLower);
+                const loginLower = memberData.login.toLowerCase();
+                const loginExists = teamData.some(m =>
+                    m.login.toLowerCase() === loginLower && (!isEdit || m.id !== memberData.id)
+                );
                 if (loginExists) errors.login = 'Login ID must be unique';
 
                 return errors;
@@ -586,7 +600,7 @@
 
             // Member Management
             const addNewMember = () => {
-                const errors = validateMemberForm();
+                const errors = validateMemberForm(newMember);
                 if (Object.keys(errors).length > 0) {
                     setFormErrors(errors);
                     return;
@@ -619,6 +633,60 @@
                 setShowAddForm(false);
                 setFormErrors({});
             };
+
+            const handleEditClick = (member) => {
+                setMemberToEdit({ ...member }); // Make a copy to avoid direct state mutation
+                setShowEditMemberModal(true);
+            };
+
+            const handleUpdateMember = () => {
+                const errors = validateMemberForm(memberToEdit, true); // Pass true for isEdit
+                if (Object.keys(errors).length > 0) {
+                    setFormErrors(errors);
+                    return;
+                }
+
+                let currentTeamData = [...getCurrentTeamData()]; // Create a mutable copy
+
+                const memberIndex = currentTeamData.findIndex(m => m.id === memberToEdit.id);
+                if (memberIndex === -1) {
+                    alert('Error: Member not found for update.');
+                    return;
+                }
+
+                // If login ID changed, update reports' manager fields
+                const oldLogin = currentTeamData[memberIndex].login;
+                if (oldLogin !== memberToEdit.login) {
+                    currentTeamData = currentTeamData.map(m =>
+                        m.manager === oldLogin ? { ...m, manager: memberToEdit.login } : m
+                    );
+                }
+
+                // Update the member's details
+                currentTeamData[memberIndex] = {
+                    ...memberToEdit,
+                    isPlaceholder: false // An edited member is no longer a placeholder
+                };
+
+                // Handle manager of the edited member: create placeholder if new manager doesn't exist
+                if (memberToEdit.manager && memberToEdit.manager.trim()) {
+                    const managerLogin = memberToEdit.manager.trim();
+                    const managerExists = currentTeamData.some(m => m.login === managerLogin);
+                    if (!managerExists) {
+                        currentTeamData = createPlaceholderManager(managerLogin, currentTeamData);
+                    }
+                }
+
+                setAllTeamsData({
+                    ...allTeamsData,
+                    [selectedTeamName]: currentTeamData
+                });
+
+                setShowEditMemberModal(false);
+                setMemberToEdit(null);
+                setFormErrors({});
+            };
+
 
             const deleteMember = (memberId) => {
                 if (!window.confirm('Delete this team member? All associated leave records will also be removed.')) {
@@ -792,10 +860,9 @@
                     const startDate = new Date(exportDateRange.start);
                     const endDate = new Date(exportDateRange.end);
 
-                    data = leaves.filter(leave => {
-                        const leaveFrom = new Date(leave.from);
-                        return leaveFrom >= startDate && leaveFrom <= endDate;
-                    });
+                    data = leaves.filter(leave =>
+                        leave.from >= exportDateRange.start && leave.from <= exportDateRange.end
+                    );
                 } else {
                     data = leaves;
                 }
@@ -886,24 +953,13 @@
                     header: true,
                     skipEmptyLines: true,
                     complete: function(results) {
-                        let currentTeamData = getCurrentTeamData();
-
-                        const importedData = results.data.map(record => {
-                            // Create placeholder managers if needed
-                            if (record.Manager && record.Manager.trim()) {
-                                currentTeamData = createPlaceholderManager(record.Manager.trim(), currentTeamData);
-                            }
-
-                            return {
-                                id: Date.now() + Math.random(),
-                                name: record.Name || '',
-                                login: record.Login || '',
-                                level: record.Level || '',
-                                workGroup: record.WorkGroup || '',
-                                manager: record.Manager || '',
-                                weeklyOffs: [6]
-                            };
-                        });
+                        const importedData = results.data.map(record => ({
+                            name: record.Name || '',
+                            login: record.Login || '',
+                            level: record.Level || '',
+                            workGroup: record.WorkGroup || '',
+                            manager: record.Manager || ''
+                        }));
 
                         setImportedTeamData(importedData);
                         setShowTeamImportModal(true);
@@ -916,19 +972,62 @@
             };
 
             const confirmTeamImport = () => {
-                let currentTeamData = getCurrentTeamData();
+                let currentTeamData = [...getCurrentTeamData()]; // Create a mutable copy
+                const updatedMembers = [...currentTeamData]; // Start with existing members
 
-                // Process each imported member and create placeholder managers as needed
-                importedTeamData.forEach(member => {
-                    if (member.manager && member.manager.trim()) {
-                        currentTeamData = createPlaceholderManager(member.manager.trim(), currentTeamData);
+                importedTeamData.forEach(importedMember => {
+                    const existingMemberIndex = updatedMembers.findIndex(m => m.login === importedMember.login);
+
+                    if (existingMemberIndex !== -1) {
+                        // Member with this login already exists
+                        const existingMember = updatedMembers[existingMemberIndex];
+                        if (existingMember.isPlaceholder) {
+                            // If it's a placeholder, update it with imported details
+                            updatedMembers[existingMemberIndex] = {
+                                ...importedMember,
+                                id: existingMember.id, // Keep the original ID
+                                isPlaceholder: false // No longer a placeholder
+                            };
+                        } else {
+                            // It's a real member and duplicate login. Overwrite existing non-placeholder with imported data.
+                            updatedMembers[existingMemberIndex] = {
+                                ...importedMember,
+                                id: existingMember.id // Keep the original ID
+                            };
+                        }
+                    } else {
+                        // New member, add it
+                        updatedMembers.push({
+                            ...importedMember,
+                            id: Date.now() + Math.random(), // Assign a new ID
+                            isPlaceholder: false, // Imported members are not placeholders initially
+                            weeklyOffs: [6] // Default weekly offs
+                        });
+                    }
+
+                    // Handle manager for the current importedMember
+                    if (importedMember.manager && importedMember.manager.trim()) {
+                        const managerLogin = importedMember.manager.trim();
+                        const managerExistsInUpdatedList = updatedMembers.some(m => m.login === managerLogin);
+                        if (!managerExistsInUpdatedList) {
+                            // If manager doesn't exist in the updated list, create a placeholder
+                            updatedMembers.push({
+                                id: Date.now() + Math.random(), // Unique ID for placeholder
+                                name: `Manager (${managerLogin})`,
+                                login: managerLogin,
+                                level: 'TBD',
+                                workGroup: 'TBD',
+                                manager: '',
+                                isPlaceholder: true,
+                                weeklyOffs: [6]
+                            });
+                        }
                     }
                 });
 
-                const newTeamData = [...currentTeamData, ...importedTeamData];
                 setAllTeamsData({
                     ...allTeamsData,
-                    [selectedTeamName]: newTeamData
+                    [selectedTeamName]: updatedMembers
                 });
 
                 setShowTeamImportModal(false);
@@ -1492,6 +1591,12 @@
                                                             {isEditMode && (
                                                                 <td>
                                                                     <button
+                                                                        className="btn btn-sm btn-outline-info me-2"
+                                                                        onClick={() => handleEditClick(member)}
+                                                                    >
+                                                                        <i className="fas fa-edit"></i>
+                                                                    </button>
+                                                                    <button
                                                                         className="btn btn-sm btn-outline-danger"
                                                                         onClick={() => deleteMember(member.id)}
                                                                     >
@@ -1511,6 +1616,7 @@
                                     <HierarchyTree
                                         members={teamMembers}
                                         onDelete={deleteMember}
+                                        onEdit={handleEditClick}
                                         isEditMode={isEditMode}
                                     />
                                 )}
@@ -1970,6 +2076,114 @@
                                             onClick={confirmTeamImport}
                                         >
                                             Confirm Import
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Edit Member Modal */}
+                    {showEditMemberModal && memberToEdit && (
+                        <div className="modal-backdrop">
+                            <div className="modal-dialog modal-dialog-centered">
+                                <div className="modal-content">
+                                    <div className="modal-header">
+                                        <h5 className="modal-title">Edit Team Member</h5>
+                                        <button
+                                            className="btn-close"
+                                            onClick={() => {
+                                                setShowEditMemberModal(false);
+                                                setMemberToEdit(null);
+                                                setFormErrors({});
+                                            }}
+                                        ></button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <div className="row g-3">
+                                            <div className="col-md-6">
+                                                <label className="form-label">Full Name *</label>
+                                                <input
+                                                    type="text"
+                                                    className={`form-control ${formErrors.name ? 'is-invalid' : ''}`}
+                                                    placeholder="Enter full name"
+                                                    value={memberToEdit.name}
+                                                    onChange={e => setMemberToEdit({...memberToEdit, name: e.target.value})}
+                                                />
+                                                {formErrors.name && <div className="form-error">{formErrors.name}</div>}
+                                            </div>
+
+                                            <div className="col-md-6">
+                                                <label className="form-label">Login ID *</label>
+                                                <input
+                                                    type="text"
+                                                    className={`form-control ${formErrors.login ? 'is-invalid' : ''}`}
+                                                    placeholder="email@company.com"
+                                                    value={memberToEdit.login}
+                                                    onChange={e => setMemberToEdit({...memberToEdit, login: e.target.value})}
+                                                />
+                                                {formErrors.login && <div className="form-error">{formErrors.login}</div>}
+                                            </div>
+
+                                            <div className="col-md-6">
+                                                <label className="form-label">Level *</label>
+                                                <select
+                                                    className={`form-select ${formErrors.level ? 'is-invalid' : ''}`}
+                                                    value={memberToEdit.level}
+                                                    onChange={e => setMemberToEdit({...memberToEdit, level: e.target.value})}
+                                                >
+                                                    <option value="">Select Level</option>
+                                                    <option value="L8">L8 (Director+)</option>
+                                                    <option value="L7">L7 (Senior Manager)</option>
+                                                    <option value="L6">L6 (Manager)</option>
+                                                    <option value="L5">L5 (Senior Engineer)</option>
+                                                    <option value="L4">L4 (Engineer)</option>
+                                                </select>
+                                                {formErrors.level && <div className="form-error">{formErrors.level}</div>}
+                                            </div>
+
+                                            <div className="col-md-6">
+                                                <label className="form-label">Work Group</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="e.g., Engineering, Product, etc."
+                                                    value={memberToEdit.workGroup}
+                                                    onChange={e => setMemberToEdit({...memberToEdit, workGroup: e.target.value})}
+                                                />
+                                            </div>
+
+                                            <div className="col-md-12">
+                                                <label className="form-label">Manager Login ID</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    placeholder="manager@company.com (leave empty for top level)"
+                                                    value={memberToEdit.manager}
+                                                    onChange={e => setMemberToEdit({...memberToEdit, manager: e.target.value})}
+                                                />
+                                                <small className="text-muted">
+                                                    Enter manager's login ID. If manager doesn't exist in team, a placeholder will be created.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="modal-footer">
+                                        <button
+                                            className="btn btn-secondary"
+                                            onClick={() => {
+                                                setShowEditMemberModal(false);
+                                                setMemberToEdit(null);
+                                                setFormErrors({});
+                                            }}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleUpdateMember}
+                                        >
+                                            Save Changes
                                         </button>
                                     </div>
                                 </div>
