@@ -331,10 +331,7 @@
             const [viewHistory, setViewHistory] = useState(['welcome']);
 
             // State Management
-            const [currentView, setCurrentView] = useState(() => {
-                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
-                return saved.currentView || 'welcome';
-            });
+            const [currentView, setCurrentView] = useState('welcome'); // Changed to always start at 'welcome'
 
             const [userTeams, setUserTeams] = useState(() => {
                 const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
@@ -427,6 +424,17 @@
             };
 
             useEffect(() => {
+                // Load other states from localStorage if available, but currentView always starts at 'welcome'
+                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
+                if (saved.userTeams) setUserTeams(saved.userTeams);
+                if (saved.selectedTeamName) setSelectedTeamName(saved.selectedTeamName);
+                if (saved.teamsMetadata) setTeamsMetadata(saved.teamsMetadata);
+                if (saved.allTeamsData) setAllTeamsData(saved.allTeamsData);
+                if (saved.allLeaveRecords) setAllLeaveRecords(saved.allLeaveRecords);
+            }, []); // Run only once on mount to load initial data
+
+            useEffect(() => {
+                // Save all relevant states to localStorage whenever they change
                 saveToLocalStorage();
             }, [currentView, userTeams, selectedTeamName, teamsMetadata, allTeamsData, allLeaveRecords]);
 
@@ -979,7 +987,7 @@
                                                 className="btn btn-outline-light"
                                                 onClick={() => setCurrentView('teamSelect')}
                                             >
-                                                <i className="fas fa-arrow-left me-2"></i> Back to Teams
+                                                <i className="fas fa-arrow-left me-2"></i> Select Existing Team
                                             </button>
                                         )}
                                     </div>
@@ -1240,6 +1248,19 @@
                                     </div>
 
                                     <div className="btn-group">
+                                        <button
+                                            className="btn btn-outline-secondary btn-sm"
+                                            onClick={() => document.getElementById('importLeaveFile').click()}
+                                        >
+                                            <i className="fas fa-upload me-1"></i>Import Leaves
+                                            <input
+                                                type="file"
+                                                id="importLeaveFile"
+                                                style={{display: 'none'}}
+                                                accept=".csv"
+                                                onChange={handleFileImport}
+                                            />
+                                        </button>
                                         <button
                                             className="btn btn-outline-secondary btn-sm"
                                             onClick={() => setShowExportModal(true)}
@@ -1741,8 +1762,8 @@
                                                                     {leave.type}
                                                                 </span>
                                                             </td>
-                                                            <td>{leave.from}</td>
                                                             <td>{leave.to}</td>
+                                                            <td>{leave.from}</td>
                                                             <td>{duration} day(s)</td>
                                                             <td>{leave.appliedAt}</td>
                                                             <td>
