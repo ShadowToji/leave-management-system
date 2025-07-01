@@ -379,7 +379,7 @@
             const [showAddForm, setShowAddForm] = useState(false);
             const [isEditMode, setIsEditMode] = useState(false);
             const [leaveSearchTerm, setLeaveSearchTerm] = useState('');
-            const [currentUser] = useState('admin@company.com');
+            const [currentUser] = useState('Owned by :Faraz');
             const [showLeaveForm, setShowLeaveForm] = useState(false);
             const [showExportModal, setShowExportModal] = useState(false);
             const [showImportModal, setShowImportModal] = useState(false);
@@ -2133,11 +2133,11 @@
                                                     onChange={e => setMemberToEdit({...memberToEdit, level: e.target.value})}
                                                 >
                                                     <option value="">Select Level</option>
-                                                    <option value="L8">L8 (Director+)</option>
-                                                    <option value="L7">L7 (Senior Manager)</option>
-                                                    <option value="L6">L6 (Manager)</option>
-                                                    <option value="L5">L5 (Senior Engineer)</option>
-                                                    <option value="L4">L4 (Engineer)</option>
+                                                    <option value="L8">L8</option>
+                                                    <option value="L7">L7</option>
+                                                    <option value="L6">L6</option>
+                                                    <option value="L5">L5</option>
+                                                    <option value="L4">L4</option>
                                                 </select>
                                                 {formErrors.level && <div className="form-error">{formErrors.level}</div>}
                                             </div>
@@ -2147,7 +2147,7 @@
                                                 <input
                                                     type="text"
                                                     className="form-control"
-                                                    placeholder="e.g., Engineering, Product, etc."
+                                                    placeholder="Risk specialist, QA.."
                                                     value={memberToEdit.workGroup}
                                                     onChange={e => setMemberToEdit({...memberToEdit, workGroup: e.target.value})}
                                                 />
@@ -2158,7 +2158,7 @@
                                                 <input
                                                     type="text"
                                                     className="form-control"
-                                                    placeholder="manager@company.com (leave empty for top level)"
+                                                    placeholder="login.."
                                                     value={memberToEdit.manager}
                                                     onChange={e => setMemberToEdit({...memberToEdit, manager: e.target.value})}
                                                 />
