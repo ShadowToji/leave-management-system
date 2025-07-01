@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Leave Management System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        :root {
+            --level-l8: #6f42c1;
+            --level-l7: #d63384;
+            --level-l6: #0dcaf0;
+            --level-l5: #20c997;
+            --level-l4: #fd7e14;
+            --level-l4-ic: #198754;
+            --placeholder: #6c757d;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .welcome-screen {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+        }
+        
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            border: none;
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        .hierarchy-node {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        
+        .hierarchy-node:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .level-l8 { background-color: rgba(111, 66, 193, 0.1); border-left: 4px solid var(--level-l8); }
+        .level-l7 { background-color: rgba(214, 51, 132, 0.1); border-left: 4px solid var(--level-l7); }
+        .level-l6 { background-color: rgba(13, 202, 240, 0.1); border-left: 4px solid var(--level-l6); }
+        .level-l5 { background-color: rgba(32, 201, 151, 0.1); border-left: 4px solid var(--level-l5); }
+        .level-l4 { background-color: rgba(253, 126, 20, 0.1); border-left: 4px solid var(--level-l4); }
+        .level-l4-ic { background-color: rgba(25, 135, 84, 0.1); border-left: 4px solid var(--level-l4-ic); }
+        .level-placeholder { background-color: rgba(108, 117, 125, 0.1); border-left: 4px solid var(--placeholder); }
+        
+        .hierarchy-children {
+            margin-left: 30px;
+            padding-left: 20px;
+            border-left: 2px dashed #dee2e6;
+        }
+        
+        .hierarchy-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        
+        .team-card {
+            transition: all 0.3s;
+        }
+        
+        .team-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .form-error {
+            color: #dc3545;
+            font-size: 0.875em;
+            margin-top: 0.25rem;
+        }
+        
+        .import-export-modal .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1040;
+        }
+        
+        .modal-content {
+            z-index: 1050;
+        }
+        
+        .tree-view-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .tree-node {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+            background-color: white;
+            border-left: 4px solid #6c757d;
+        }
+        
+        .tree-children {
+            margin-left: 30px;
+            padding-left: 15px;
+            border-left: 2px dashed #dee2e6;
+        }
+        
+        .tree-header {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .tree-toggle {
+            margin-right: 8px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .leave-status-badge {
+            font-size: 0.75rem;
+            padding: 0.25em 0.6em;
+        }
+        
+        .summary-card {
+            height: 100%;
+            border-left: 4px solid;
+        }
+        
+        .today-leave {
+            border-left-color: #dc3545;
+        }
+        
+        .upcoming-leave {
+            border-left-color: #ffc107;
+        }
+        
+        .summary-card .card-body {
+            padding: 1rem;
+        }
+        
+        .placeholder-member {
+            opacity: 0.7;
+            font-style: italic;
+        }
+        
+        .template-download-section {
+            background-color: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* New styles for hierarchy view */
+        .tree-toggle {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        /* Fix for modal backdrop */
+        .modal-backdrop {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        // Recursive component for hierarchy tree
+        const HierarchyTree = ({ members, onDelete, isEditMode }) => {
+            const [expandedNodes, setExpandedNodes] = useState({});
+            const initialized = useRef(false);
+            
+            // Build tree structure
+            const buildTree = useCallback((managerId = '') => {
+                return members
+                    .filter(member => member.manager === managerId)
+                    .map(member => ({
+                        ...member,
+                        children: buildTree(member.login)
+                    }));
+            }, [members]);
+            
+            const tree = useMemo(() => buildTree(), [buildTree, members]);
+            
+            // Expand root nodes by default
+            useEffect(() => {
+                if (!initialized.current && members.length > 0) {
+                    const rootIds = tree.map(node => node.id);
+                    const newExpanded = {};
+                    rootIds.forEach(id => {
+                        newExpanded[id] = true;
+                    });
+                    setExpandedNodes(newExpanded);
+                    initialized.current = true;
+                }
+            }, [members, tree]);
+            
+            const toggleNode = (id) => {
+                setExpandedNodes(prev => ({
+                    ...prev,
+                    [id]: !prev[id]
+                }));
+            };
+            
+            const getDisplayLevel = (member) => {
+                if (member.isPlaceholder) return 'placeholder';
+                const hasReports = members.some(m => m.manager === member.login && !m.isPlaceholder);
+                return hasReports && member.level === 'L4' ? 'l4' : member.level.toLowerCase().replace(' ', '-');
+            };
+            
+            const renderNode = (node) => {
+                const isExpanded = expandedNodes[node.id];
+                const hasChildren = node.children && node.children.length > 0;
+                const displayLevel = getDisplayLevel(node);
+                
+                return (
+                    <div key={node.id} className="mb-2">
+                        <div className={`tree-node level-${displayLevel} ${node.isPlaceholder ? 'placeholder-member' : ''}`}>
+                            <div className="d-flex justify-content-between align-items-center">
+                                <div className="d-flex align-items-center">
+                                    {hasChildren ? (
+                                        <span 
+                                            className="tree-toggle" 
+                                            onClick={() => toggleNode(node.id)}
+                                        >
+                                            {isExpanded ? '▼' : '►'}
+                                        </span>
+                                    ) : (
+                                        <span className="tree-toggle" style={{ visibility: 'hidden' }}>•</span>
+                                    )}
+                                    <div className="d-flex align-items-center">
+                                        <div 
+                                            className="hierarchy-icon"
+                                            style={{ 
+                                                backgroundColor: `var(--level-${displayLevel})`,
+                                                color: 'white'
+                                            }}
+                                        >
+                                            {node.isPlaceholder ? '?' : 
+                                             displayLevel === 'l4' ? 'M' :
+                                             displayLevel === 'l4-ic' ? 'IC' :
+                                             node.level.charAt(1)}
+                                        </div>
+                                        <div>
+                                            <div className="fw-bold">
+                                                {node.name}
+                                                {node.isPlaceholder && <span className="badge bg-warning ms-2">Placeholder</span>}
+                                            </div>
+                                            <div className="small text-muted">
+                                                {node.login} | {node.isPlaceholder ? 'TBD' : 
+                                                 (displayLevel === 'l4' ? 'L4 Manager' :
+                                                  displayLevel === 'l4-ic' ? 'L4 IC' : node.level)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {isEditMode && (
+                                    <button 
+                                        className="btn btn-sm btn-outline-danger"
+                                        onClick={() => onDelete(node.id)}
+                                    >
+                                        <i className="fas fa-trash-alt"></i>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {hasChildren && isExpanded && (
+                            <div className="tree-children">
+                                {node.children.map(child => renderNode(child))}
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+            
+            return (
+                <div className="tree-view-container mt-4">
+                    <h5 className="mb-3">
+                        <i className="fas fa-diagram-project me-2"></i>
+                        Reporting Hierarchy
+                    </h5>
+                    {tree.length > 0 ? (
+                        tree.map(root => renderNode(root))
+                    ) : (
+                        <div className="text-center py-4 text-muted">
+                            <i className="fas fa-sitemap fa-2x mb-2"></i>
+                            <p>No hierarchy data available</p>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const LeaveManagementSystem = () => {
+            // Navigation history
+            const [viewHistory, setViewHistory] = useState(['welcome']);
+            
+            // State Management
+            const [currentView, setCurrentView] = useState(() => {
+                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
+                return saved.currentView || 'welcome';
+            });
+            
+            const [userTeams, setUserTeams] = useState(() => {
+                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
+                return saved.userTeams || [];
+            });
+            
+            const [selectedTeamName, setSelectedTeamName] = useState(() => {
+                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
+                return saved.selectedTeamName || '';
+            });
+
+            const [newTeam, setNewTeam] = useState({
+                name: '',
+                title: '',
+                description: ''
+            });
+
+            const [teamsMetadata, setTeamsMetadata] = useState(() => {
+                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
+                return saved.teamsMetadata || {};
+            });
+
+            const [allTeamsData, setAllTeamsData] = useState(() => {
+                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
+                return saved.allTeamsData || {};
+            });
+            
+            const [allLeaveRecords, setAllLeaveRecords] = useState(() => {
+                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
+                return saved.allLeaveRecords || {};
+            });
+            
+            const [newMember, setNewMember] = useState({ 
+                name: '', level: '', workGroup: '', manager: '', login: '' 
+            });
+            
+            const [showAddForm, setShowAddForm] = useState(false);
+            const [isEditMode, setIsEditMode] = useState(false);
+            const [leaveSearchTerm, setLeaveSearchTerm] = useState('');
+            const [currentUser] = useState('admin@company.com');
+            const [showLeaveForm, setShowLeaveForm] = useState(false);
+            const [showExportModal, setShowExportModal] = useState(false);
+            const [showImportModal, setShowImportModal] = useState(false);
+            const [formErrors, setFormErrors] = useState({});
+            const [newLeave, setNewLeave] = useState({
+                employee: '',
+                type: 'Vacation',
+                from: '',
+                to: '',
+                hours: 8,
+                isSingleDay: false
+            });
+            const [importedLeaveData, setImportedLeaveData] = useState([]);
+            const [exportFormat, setExportFormat] = useState('csv');
+            const [exportDateRange, setExportDateRange] = useState({
+                start: '',
+                end: ''
+            });
+            const [showTeamImportModal, setShowTeamImportModal] = useState(false);
+            const [importedTeamData, setImportedTeamData] = useState([]);
+            const [activeTab, setActiveTab] = useState('table');
+
+            // Navigation functions
+            const navigateTo = (view) => {
+                setViewHistory(prev => [...prev, currentView]);
+                setCurrentView(view);
+            };
+            
+            const navigateBack = () => {
+                if (viewHistory.length > 1) {
+                    const prevView = viewHistory[viewHistory.length - 1];
+                    setViewHistory(prev => prev.slice(0, -1));
+                    setCurrentView(prevView);
+                } else {
+                    setCurrentView('welcome');
+                }
+            };
+
+            // Persistence Functions
+            const saveToLocalStorage = useCallback(() => {
+                const state = {
+                    currentView,
+                    userTeams,
+                    selectedTeamName,
+                    teamsMetadata,
+                    allTeamsData,
+                    allLeaveRecords
+                };
+                localStorage.setItem('leaveManagementState', JSON.stringify(state));
+            }, [currentView, userTeams, selectedTeamName, teamsMetadata, allTeamsData, allLeaveRecords]);
+            
+            useEffect(() => {
+                saveToLocalStorage();
+            }, [saveToLocalStorage]);
+
+            // Utility Functions
+            const getCurrentTeamData = () => allTeamsData[selectedTeamName] || [];
+            const getCurrentLeaveRecords = () => allLeaveRecords[selectedTeamName] || [];
+            
+            const createPlaceholderManager = (managerLogin, teamData) => {
+                // Check if manager already exists
+                const existingManager = teamData.find(m => m.login === managerLogin);
+                if (existingManager) return teamData;
+                
+                // Create placeholder
+                const placeholder = {
+                    id: Date.now() + Math.random(),
+                    name: `Manager (${managerLogin})`,
+                    login: managerLogin,
+                    level: 'TBD',
+                    workGroup: 'TBD',
+                    manager: '',
+                    isPlaceholder: true,
+                    weeklyOffs: [6]
+                };
+                
+                return [...teamData, placeholder];
+            };
+            
+            const determineActualLevel = (member, teamData) => {
+                const hasReports = teamData.some(m => m.manager === member.login && !m.isPlaceholder);
+                
+                if (member.level === 'L4') {
+                    return hasReports ? 'L4' : 'L4 IC';
+                }
+                return member.level;
+            };
+            
+            const getFilteredLeaves = () => {
+                const leaves = getCurrentLeaveRecords();
+                if (!leaveSearchTerm.trim()) return leaves;
+                
+                const searchLower = leaveSearchTerm.toLowerCase().trim();
+                return leaves.filter(leave => {
+                    const employeeMatch = leave.employee.toLowerCase().includes(searchLower);
+                    const typeMatch = leave.type.toLowerCase().includes(searchLower);
+                    
+                    const employee = getCurrentTeamData().find(m => m.name === leave.employee);
+                    if (!employee) return employeeMatch || typeMatch;
+                    
+                    const loginMatch = employee.login.toLowerCase().includes(searchLower);
+                    
+                    let managerMatch = false;
+                    if (employee.manager) {
+                        const manager = getCurrentTeamData().find(m => m.login === employee.manager);
+                        if (manager) {
+                            managerMatch = manager.name.toLowerCase().includes(searchLower);
+                        }
+                    }
+                    
+                    return employeeMatch || typeMatch || loginMatch || managerMatch;
+                });
+            };
+            
+            const validateMemberForm = () => {
+                const errors = {};
+                const teamData = getCurrentTeamData();
+                
+                if (!newMember.name) errors.name = 'Name is required';
+                if (!newMember.login) errors.login = 'Login ID is required';
+                if (!newMember.level) errors.level = 'Level is required';
+                
+                const loginLower = newMember.login.toLowerCase();
+                const loginExists = teamData.some(m => m.login.toLowerCase() === loginLower);
+                if (loginExists) errors.login = 'Login ID must be unique';
+                
+                return errors;
+            };
+
+            // Team Management
+            const createTeam = () => {
+                if (!newTeam.name || !newTeam.title) {
+                    alert('Please fill in Team Name and Team Title');
+                    return;
+                }
+
+                if (userTeams.includes(newTeam.name)) {
+                    alert('Team name already exists. Please choose a different name.');
+                    return;
+                }
+
+                const updatedUserTeams = [...userTeams, newTeam.name];
+                setUserTeams(updatedUserTeams);
+                setSelectedTeamName(newTeam.name);
+                
+                const newMetadata = {...teamsMetadata, [newTeam.name]: {
+                    title: newTeam.title,
+                    description: newTeam.description
+                }};
+                setTeamsMetadata(newMetadata);
+                
+                const updatedTeamsData = {...allTeamsData, [newTeam.name]: []};
+                setAllTeamsData(updatedTeamsData);
+                
+                const updatedLeaveRecords = {...allLeaveRecords, [newTeam.name]: []};
+                setAllLeaveRecords(updatedLeaveRecords);
+                
+                navigateTo('teamDashboard');
+                setNewTeam({ name: '', title: '', description: '' });
+            };
+
+            const deleteTeam = (teamName) => {
+                const teamData = allTeamsData[teamName] || [];
+                const leaveRecords = allLeaveRecords[teamName] || [];
+                
+                let confirmMessage = `Delete team "${teamName}"?`;
+                if (teamData.length > 0) {
+                    confirmMessage += ` This will permanently remove ${teamData.length} team members`;
+                }
+                if (leaveRecords.length > 0) {
+                    confirmMessage += ` and ${leaveRecords.length} leave records`;
+                }
+                confirmMessage += '. This action cannot be undone.';
+                
+                if (!window.confirm(confirmMessage)) return;
+                
+                const updatedTeams = userTeams.filter(team => team !== teamName);
+                setUserTeams(updatedTeams);
+                
+                const updatedTeamsData = {...allTeamsData};
+                delete updatedTeamsData[teamName];
+                setAllTeamsData(updatedTeamsData);
+                
+                const updatedLeaveRecords = {...allLeaveRecords};
+                delete updatedLeaveRecords[teamName];
+                setAllLeaveRecords(updatedLeaveRecords);
+                
+                const updatedMetadata = {...teamsMetadata};
+                delete updatedMetadata[teamName];
+                setTeamsMetadata(updatedMetadata);
+                
+                if (selectedTeamName === teamName) {
+                    if (updatedTeams.length > 0) {
+                        setSelectedTeamName(updatedTeams[0]);
+                    } else {
+                        setSelectedTeamName('');
+                        setCurrentView('welcome');
+                    }
+                }
+            };
+
+            // Member Management
+            const addNewMember = () => {
+                const errors = validateMemberForm();
+                if (Object.keys(errors).length > 0) {
+                    setFormErrors(errors);
+                    return;
+                }
+                
+                let currentTeamData = getCurrentTeamData();
+                
+                // Create placeholder manager if needed
+                if (newMember.manager && newMember.manager.trim()) {
+                    currentTeamData = createPlaceholderManager(newMember.manager.trim(), currentTeamData);
+                }
+                
+                const member = {
+                    id: Date.now(),
+                    name: newMember.name,
+                    login: newMember.login,
+                    level: newMember.level,
+                    workGroup: newMember.workGroup,
+                    manager: newMember.manager.trim() || '',
+                    weeklyOffs: [6]
+                };
+                
+                const newTeamData = [...currentTeamData, member];
+                setAllTeamsData({
+                    ...allTeamsData,
+                    [selectedTeamName]: newTeamData
+                });
+                
+                setNewMember({name: '', login: '', level: '', workGroup: '', manager: ''});
+                setShowAddForm(false);
+                setFormErrors({});
+            };
+
+            const deleteMember = (memberId) => {
+                if (!window.confirm('Delete this team member? All associated leave records will also be removed.')) {
+                    return;
+                }
+                
+                const teamData = getCurrentTeamData();
+                const memberToDelete = teamData.find(m => m.id === memberId);
+                
+                // Remove member and anyone who reports to them
+                const removeRecursively = (loginToRemove) => {
+                    let membersToRemove = [loginToRemove];
+                    // Find all reports recursively
+                    const findReports = (managerLogin) => {
+                        const reports = teamData.filter(m => m.manager === managerLogin);
+                        for (const report of reports) {
+                            membersToRemove.push(report.login);
+                            findReports(report.login);
+                        }
+                    };
+                    findReports(loginToRemove);
+                    return teamData.filter(m => !membersToRemove.includes(m.login));
+                };
+                
+                const updatedMembers = removeRecursively(memberToDelete.login);
+                
+                // Get names of all removed members
+                const removedNames = teamData
+                    .filter(m => !updatedMembers.some(um => um.id === m.id))
+                    .map(m => m.name);
+                
+                // Remove associated leave records
+                const updatedLeaveRecords = getCurrentLeaveRecords().filter(
+                    leave => !removedNames.includes(leave.employee)
+                );
+                
+                setAllTeamsData({
+                    ...allTeamsData,
+                    [selectedTeamName]: updatedMembers
+                });
+                
+                setAllLeaveRecords({
+                    ...allLeaveRecords,
+                    [selectedTeamName]: updatedLeaveRecords
+                });
+            };
+
+            // Leave Management
+            const addNewLeave = () => {
+                if (!newLeave.employee || !newLeave.from) {
+                    alert('Please fill in required fields: Employee and From Date');
+                    return;
+                }
+                
+                // If single day leave, set to date same as from date
+                const toDate = newLeave.isSingleDay ? newLeave.from : newLeave.to;
+                
+                if (!toDate) {
+                    alert('Please select To Date or check Single Day option');
+                    return;
+                }
+                
+                const leave = {
+                    id: Date.now(),
+                    ...newLeave,
+                    to: toDate,
+                    appliedAt: new Date().toISOString().split('T')[0]
+                };
+                
+                const newLeaveRecords = [...getCurrentLeaveRecords(), leave];
+                setAllLeaveRecords({
+                    ...allLeaveRecords,
+                    [selectedTeamName]: newLeaveRecords
+                });
+                
+                setNewLeave({
+                    employee: '',
+                    type: 'Vacation',
+                    from: '',
+                    to: '',
+                    hours: 8,
+                    isSingleDay: false
+                });
+                setShowLeaveForm(false);
+            };
+
+            const deleteLeave = (leaveId) => {
+                if (!window.confirm('Delete this leave record?')) return;
+                
+                const updatedLeaves = getCurrentLeaveRecords().filter(leave => leave.id !== leaveId);
+                setAllLeaveRecords({
+                    ...allLeaveRecords,
+                    [selectedTeamName]: updatedLeaves
+                });
+            };
+
+            // Calculate leave summaries
+            const getLeaveSummary = () => {
+                const today = new Date().toISOString().split('T')[0];
+                const leaves = getCurrentLeaveRecords();
+                
+                const todayLeaves = leaves.filter(leave => 
+                    leave.from <= today && leave.to >= today
+                );
+                
+                // Upcoming leaves (next 7 days)
+                const nextWeek = new Date();
+                nextWeek.setDate(nextWeek.getDate() + 7);
+                const nextWeekStr = nextWeek.toISOString().split('T')[0];
+                
+                const upcomingLeaves = leaves.filter(leave => 
+                    leave.from > today && leave.from <= nextWeekStr
+                );
+                
+                return {
+                    today: todayLeaves,
+                    upcoming: upcomingLeaves,
+                    all: leaves
+                };
+            };
+
+            // Template Downloads
+            const downloadLeaveTemplate = () => {
+                const templateData = [
+                    ['Employee', 'Type', 'From', 'To', 'Hours'],
+                    ['John Doe', 'Vacation', '2025-07-15', '2025-07-20', '40'],
+                    ['Jane Smith', 'Sick', '2025-07-18', '2025-07-18', '8']
+                ];
+                
+                const csv = Papa.unparse({
+                    fields: templateData[0],
+                    data: templateData.slice(1)
+                });
+                
+                const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'leave-template.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            const downloadTeamTemplate = () => {
+                const templateData = [
+                    ['Name', 'Login', 'Level', 'WorkGroup', 'Manager'],
+                    ['John Doe', 'john.doe@company.com', 'L6', 'Engineering', ''],
+                    ['Jane Smith', 'jane.smith@company.com', 'L5', 'Engineering', 'john.doe@company.com'],
+                    ['Bob Wilson', 'bob.wilson@company.com', 'L4', 'Engineering', 'jane.smith@company.com'],
+                    ['Alice Brown', 'alice.brown@company.com', 'L4', 'Engineering', 'jane.smith@company.com']
+                ];
+                
+                const csv = Papa.unparse({
+                    fields: templateData[0],
+                    data: templateData.slice(1)
+                });
+                
+                const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'team-template.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            // Export/Import
+            const exportData = () => {
+                let data = [];
+                const leaves = getCurrentLeaveRecords();
+                
+                if (exportDateRange.start && exportDateRange.end) {
+                    const startDate = new Date(exportDateRange.start);
+                    const endDate = new Date(exportDateRange.end);
+                    
+                    data = leaves.filter(leave => {
+                        const leaveFrom = new Date(leave.from);
+                        return leaveFrom >= startDate && leaveFrom <= endDate;
+                    });
+                } else {
+                    data = leaves;
+                }
+                
+                if (exportFormat === 'json') {
+                    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `leave-records-${selectedTeamName}-${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } else {
+                    // CSV export
+                    const csv = Papa.unparse({
+                        fields: ['Employee', 'Type', 'From', 'To', 'Hours'],
+                        data: data.map(leave => [
+                            leave.employee,
+                            leave.type,
+                            leave.from,
+                            leave.to,
+                            leave.hours
+                        ])
+                    });
+                    
+                    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `leave-records-${selectedTeamName}-${new Date().toISOString().slice(0, 10)}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+                
+                setShowExportModal(false);
+            };
+
+            const handleFileImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        const importedData = results.data.map(record => ({
+                            id: Date.now() + Math.random(),
+                            employee: record.Employee || '',
+                            type: record.Type || 'Vacation',
+                            from: record.From || '',
+                            to: record.To || '',
+                            hours: parseInt(record.Hours) || 8
+                        }));
+                        
+                        setImportedLeaveData(importedData);
+                        setShowImportModal(true);
+                    },
+                    error: function(error) {
+                        console.error('Error parsing CSV:', error);
+                        alert('Failed to parse CSV file. Please check the format.');
+                    }
+                });
+            };
+
+            const confirmImport = () => {
+                const newLeaveRecords = [...getCurrentLeaveRecords(), ...importedLeaveData];
+                setAllLeaveRecords({
+                    ...allLeaveRecords,
+                    [selectedTeamName]: newLeaveRecords
+                });
+                
+                setShowImportModal(false);
+                setImportedLeaveData([]);
+                alert(`${importedLeaveData.length} leave records imported successfully!`);
+            };
+
+            const handleTeamFileImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        let currentTeamData = getCurrentTeamData();
+                        
+                        const importedData = results.data.map(record => {
+                            // Create placeholder managers if needed
+                            if (record.Manager && record.Manager.trim()) {
+                                currentTeamData = createPlaceholderManager(record.Manager.trim(), currentTeamData);
+                            }
+                            
+                            return {
+                                id: Date.now() + Math.random(),
+                                name: record.Name || '',
+                                login: record.Login || '',
+                                level: record.Level || '',
+                                workGroup: record.WorkGroup || '',
+                                manager: record.Manager || '',
+                                weeklyOffs: [6]
+                            };
+                        });
+                        
+                        setImportedTeamData(importedData);
+                        setShowTeamImportModal(true);
+                    },
+                    error: function(error) {
+                        console.error('Error parsing CSV:', error);
+                        alert('Failed to parse CSV file. Please check the format.');
+                    }
+                });
+            };
+
+            const confirmTeamImport = () => {
+                let currentTeamData = getCurrentTeamData();
+                
+                // Process each imported member and create placeholder managers as needed
+                importedTeamData.forEach(member => {
+                    if (member.manager && member.manager.trim()) {
+                        currentTeamData = createPlaceholderManager(member.manager.trim(), currentTeamData);
+                    }
+                });
+                
+                const newTeamData = [...currentTeamData, ...importedTeamData];
+                setAllTeamsData({
+                    ...allTeamsData,
+                    [selectedTeamName]: newTeamData
+                });
+                
+                setShowTeamImportModal(false);
+                setImportedTeamData([]);
+                alert(`${importedTeamData.length} team members imported successfully!`);
+            };
+
+            const exportTeamData = () => {
+                const teamData = getCurrentTeamData().filter(member => !member.isPlaceholder);
+                
+                const csv = Papa.unparse({
+                    fields: ['Name', 'Login', 'Level', 'WorkGroup', 'Manager'],
+                    data: teamData.map(member => [
+                        member.name,
+                        member.login,
+                        member.level,
+                        member.workGroup,
+                        member.manager || ''
+                    ])
+                });
+                
+                const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `team-${selectedTeamName}-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+
+            // UI Components
+            const teamMetadata = teamsMetadata[selectedTeamName] || {};
+            const teamMembers = getCurrentTeamData();
+            const filteredLeaves = getFilteredLeaves();
+            const leaveSummary = getLeaveSummary();
+
+            // View Rendering
+            if (currentView === 'welcome') {
+                return (
+                    <div className="welcome-screen">
+                        <div className="container py-5">
+                            <div className="row justify-content-center">
+                                <div className="col-lg-8">
+                                    <div className="text-center text-white mb-5">
+                                        <h1 className="display-4 fw-bold mb-3">🏢 Enterprise Leave Management</h1>
+                                        <p className="lead mb-4">
+                                            Advanced team management with hierarchy tracking and leave planning
+                                        </p>
+                                        
+                                        {/* Back button when teams exist */}
+                                        {userTeams.length > 0 && (
+                                            <button 
+                                                className="btn btn-outline-light"
+                                                onClick={() => setCurrentView('teamSelect')}
+                                            >
+                                                <i className="fas fa-arrow-left me-2"></i> Back to Teams
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="row g-4 mb-5">
+                                        {[
+                                            {icon: '👥', title: 'Smart Hierarchy', desc: 'Auto-detect IC vs Manager based on reports'},
+                                            {icon: '📅', title: 'Leave Planning', desc: 'Manage current and upcoming time off'},
+                                            {icon: '📊', title: 'Data Import/Export', desc: 'CSV templates and bulk operations'},
+                                            {icon: '🔍', title: 'Advanced Search', desc: 'Find leaves by employee, manager, or level'}
+                                        ].map((feature, idx) => (
+                                            <div key={idx} className="col-md-6">
+                                                <div className="card h-100 team-card">
+                                                    <div className="card-body text-center">
+                                                        <div className="display-4 mb-3">{feature.icon}</div>
+                                                        <h5>{feature.title}</h5>
+                                                        <p>{feature.desc}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="card">
+                                        <div className="card-body p-4 p-md-5">
+                                            <div className="text-center mb-4">
+                                                <h2>
+                                                    {userTeams.length > 0 
+                                                     ? 'Create a New Team' 
+                                                     : 'Create Your First Team'}
+                                                </h2>
+                                                <p className="text-muted">Get started by setting up your team workspace</p>
+                                            </div>
+                                            
+                                            <div className="row g-3 mb-4">
+                                                <div className="col-md-6">
+                                                    <label className="form-label fw-bold">Team Name *</label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-control"
+                                                        placeholder="e.g., Engineering Team"
+                                                        value={newTeam.name}
+                                                        onChange={(e) => setNewTeam({...newTeam, name: e.target.value})}
+                                                    />
+                                                </div>
+                                                
+                                                <div className="col-md-6">
+                                                    <label className="form-label fw-bold">Dashboard Title *</label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-control"
+                                                        value={newTeam.title}
+                                                        onChange={(e) => setNewTeam({...newTeam, title: e.target.value})}
+                                                        placeholder="e.g., Engineering Dashboard"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="mb-4">
+                                                <label className="form-label fw-bold">Description (Optional)</label>
+                                                <textarea
+                                                    className="form-control"
+                                                    rows="3"
+                                                    value={newTeam.description}
+                                                    onChange={(e) => setNewTeam({...newTeam, description: e.target.value})}
+                                                    placeholder="Describe your team's purpose and objectives"
+                                                />
+                                            </div>
+
+                                            <div className="d-grid">
+                                                <button
+                                                    onClick={createTeam}
+                                                    disabled={!newTeam.name || !newTeam.title}
+                                                    className="btn btn-primary btn-lg"
+                                                >
+                                                    Create Team & Get Started
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (currentView === 'teamSelect') {
+                return (
+                    <div className="d-flex align-items-center justify-content-center min-vh-100 py-5">
+                        <div className="container">
+                            <div className="row justify-content-center">
+                                <div className="col-lg-10">
+                                    <div className="d-flex justify-content-between align-items-center mb-4">
+                                        <h2>
+                                            <i className="fas fa-building me-2"></i>
+                                            Your Teams ({userTeams.length})
+                                        </h2>
+                                        <button 
+                                            className="btn btn-primary"
+                                            onClick={() => setCurrentView('welcome')}
+                                        >
+                                            <i className="fas fa-plus me-2"></i>Create New Team
+                                        </button>
+                                    </div>
+                                    
+                                    {userTeams.length === 0 ? (
+                                        <div className="card">
+                                            <div className="card-body text-center py-5">
+                                                <div className="display-4 text-muted mb-3">
+                                                    <i className="fas fa-users"></i>
+                                                </div>
+                                                <h4>No Teams Found</h4>
+                                                <p className="text-muted mb-4">You haven't created any teams yet</p>
+                                                <button 
+                                                    className="btn btn-primary"
+                                                    onClick={() => setCurrentView('welcome')}
+                                                >
+                                                    Create Your First Team
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                                            {userTeams.map(team => {
+                                                const teamData = allTeamsData[team] || [];
+                                                const realMembers = teamData.filter(m => !m.isPlaceholder);
+                                                
+                                                return (
+                                                    <div className="col" key={team}>
+                                                        <div className="card team-card h-100">
+                                                            <div className="card-header d-flex justify-content-between align-items-center">
+                                                                <h5 className="mb-0">{team}</h5>
+                                                                <div className="dropdown">
+                                                                    <button className="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                                                            type="button" data-bs-toggle="dropdown">
+                                                                        <i className="fas fa-ellipsis-v"></i>
+                                                                    </button>
+                                                                    <ul className="dropdown-menu">
+                                                                        <li>
+                                                                            <button 
+                                                                                className="dropdown-item text-danger" 
+                                                                                onClick={() => deleteTeam(team)}
+                                                                            >
+                                                                                <i className="fas fa-trash-alt me-2"></i>Delete Team
+                                                                            </button>
+                                                                        </li>
+                                                                    </ul>
+                                                                </div>
+                                                            </div>
+                                                            <div className="card-body">
+                                                                <h6 className="text-primary mb-2">
+                                                                    {teamsMetadata[team]?.title || 'Team Dashboard'}
+                                                                </h6>
+                                                                <p className="text-muted small mb-3">
+                                                                    {teamsMetadata[team]?.description || 'No description provided'}
+                                                                </p>
+                                                                
+                                                                <div className="text-center mb-3">
+                                                                    <div className="border rounded p-3">
+                                                                        <div className="fw-bold text-primary">{realMembers.length}</div>
+                                                                        <div className="small text-muted">Team Members</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="card-footer bg-transparent">
+                                                                <button 
+                                                                    className="btn btn-outline-primary w-100"
+                                                                    onClick={() => {
+                                                                        setSelectedTeamName(team);
+                                                                        setCurrentView('teamDashboard');
+                                                                    }}
+                                                                >
+                                                                    <i className="fas fa-arrow-right me-2"></i>
+                                                                    Open Dashboard
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Team Dashboard
+            return (
+                <div className="container-fluid px-0">
+                    {/* Navigation Bar */}
+                    <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+                        <div className="container-fluid">
+                            <div className="d-flex align-items-center">
+                                <button
+                                    className="btn btn-outline-light btn-sm me-3"
+                                    onClick={() => setCurrentView('teamSelect')}
+                                >
+                                    <i className="fas fa-arrow-left me-1"></i>Teams
+                                </button>
+                                <div className="flex-grow-1">
+                                    <h4 className="navbar-brand mb-0">{teamMetadata.title || 'Team Dashboard'}</h4>
+                                    <small className="text-light">
+                                        Team: <strong>{selectedTeamName}</strong>
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div className="d-flex align-items-center">
+                                <span className="text-light me-3 d-none d-md-block">
+                                    <i className="fas fa-user me-1"></i>{currentUser}
+                                </span>
+                                <button
+                                    onClick={() => setIsEditMode(!isEditMode)}
+                                    className={`btn btn-sm ${isEditMode ? 'btn-success' : 'btn-outline-light'}`}
+                                >
+                                    {isEditMode ? '✅ Done' : '✏️ Edit'}
+                                </button>
+                            </div>
+                        </div>
+                    </nav>
+
+                    <div className="container-fluid py-4">
+                        {/* Team Structure Section */}
+                        <div className="card mb-4">
+                            <div className="card-header d-flex flex-wrap justify-content-between align-items-center">
+                                <h5 className="mb-2 mb-md-0">
+                                    <i className="fas fa-sitemap me-2"></i>
+                                    Team Structure ({teamMembers.filter(m => !m.isPlaceholder).length} members, {teamMembers.filter(m => m.isPlaceholder).length} pending)
+                                </h5>
+                                
+                                <div className="d-flex align-items-center flex-wrap gap-2">
+                                    {isEditMode && (
+                                        <button
+                                            onClick={() => setShowAddForm(!showAddForm)}
+                                            className="btn btn-success btn-sm"
+                                        >
+                                            <i className="fas fa-plus me-1"></i> Add Member
+                                        </button>
+                                    )}
+                                    
+                                    <div className="btn-group">
+                                        <button 
+                                            className="btn btn-outline-primary btn-sm"
+                                            onClick={exportTeamData}
+                                        >
+                                            <i className="fas fa-file-export me-1"></i> Export Team
+                                        </button>
+                                        <button 
+                                            className="btn btn-outline-primary btn-sm"
+                                            onClick={downloadTeamTemplate}
+                                        >
+                                            <i className="fas fa-download me-1"></i> Get Template
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="btn-group">
+                                        <button 
+                                            className="btn btn-outline-secondary btn-sm"
+                                            onClick={() => setShowExportModal(true)}
+                                        >
+                                            <i className="fas fa-file-export me-1"></i> Export Leaves
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="card-body">
+                                {/* Add Member Form */}
+                                {isEditMode && showAddForm && (
+                                    <div className="card bg-light mb-4">
+                                        <div className="card-body">
+                                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 className="mb-0">Add New Team Member</h6>
+                                                <button 
+                                                    className="btn-close" 
+                                                    onClick={() => setShowAddForm(false)}
+                                                ></button>
+                                            </div>
+                                            <div className="row g-3">
+                                                <div className="col-md-6">
+                                                    <label className="form-label">Full Name *</label>
+                                                    <input
+                                                        type="text"
+                                                        className={`form-control ${formErrors.name ? 'is-invalid' : ''}`}
+                                                        placeholder="Enter full name"
+                                                        value={newMember.name}
+                                                        onChange={e => setNewMember({...newMember, name: e.target.value})}
+                                                    />
+                                                    {formErrors.name && <div className="form-error">{formErrors.name}</div>}
+                                                </div>
+                                                
+                                                <div className="col-md-6">
+                                                    <label className="form-label">Login ID *</label>
+                                                    <input
+                                                        type="text"
+                                                        className={`form-control ${formErrors.login ? 'is-invalid' : ''}`}
+                                                        placeholder="email@company.com"
+                                                        value={newMember.login}
+                                                        onChange={e => setNewMember({...newMember, login: e.target.value})}
+                                                    />
+                                                    {formErrors.login && <div className="form-error">{formErrors.login}</div>}
+                                                </div>
+                                                
+                                                <div className="col-md-6">
+                                                    <label className="form-label">Level *</label>
+                                                    <select
+                                                        className={`form-select ${formErrors.level ? 'is-invalid' : ''}`}
+                                                        value={newMember.level}
+                                                        onChange={e => setNewMember({...newMember, level: e.target.value})}
+                                                    >
+                                                        <option value="">Select Level</option>
+                                                        <option value="L8">L8 (Director+)</option>
+                                                        <option value="L7">L7 (Senior Manager)</option>
+                                                        <option value="L6">L6 (Manager)</option>
+                                                        <option value="L5">L5 (Senior Engineer)</option>
+                                                        <option value="L4">L4 (Engineer)</option>
+                                                    </select>
+                                                    {formErrors.level && <div className="form-error">{formErrors.level}</div>}
+                                                </div>
+                                                
+                                                <div className="col-md-6">
+                                                    <label className="form-label">Work Group</label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-control"
+                                                        placeholder="e.g., Engineering, Product, etc."
+                                                        value={newMember.workGroup}
+                                                        onChange={e => setNewMember({...newMember, workGroup: e.target.value})}
+                                                    />
+                                                </div>
+                                                
+                                                <div className="col-md-12">
+                                                    <label className="form-label">Manager Login ID</label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-control"
+                                                        placeholder="manager@company.com (leave empty for top level)"
+                                                        value={newMember.manager}
+                                                        onChange={e => setNewMember({...newMember, manager: e.target.value})}
+                                                    />
+                                                    <small className="text-muted">
+                                                        Enter manager's login ID. If manager doesn't exist in team, a placeholder will be created.
+                                                    </small>
+                                                </div>
+                                                
+                                                <div className="col-md-12 d-flex justify-content-end gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowAddForm(false);
+                                                            setFormErrors({});
+                                                        }}
+                                                        className="btn btn-outline-secondary"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        onClick={addNewMember}
+                                                        className="btn btn-success"
+                                                    >
+                                                        Add Member
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Import Section */}
+                                <div className="template-download-section mb-4">
+                                    <h6><i className="fas fa-file-import me-2"></i>Import Team Members</h6>
+                                    <p className="text-muted mb-3">Import multiple team members using a CSV file</p>
+                                    <div className="d-flex justify-content-center gap-3">
+                                        <button 
+                                            className="btn btn-outline-primary"
+                                            onClick={downloadTeamTemplate}
+                                        >
+                                            <i className="fas fa-download me-2"></i>Download Template
+                                        </button>
+                                        <button 
+                                            className="btn btn-primary"
+                                            onClick={() => document.getElementById('importTeamFile').click()}
+                                        >
+                                            <i className="fas fa-upload me-2"></i>Upload CSV File
+                                            <input 
+                                                type="file" 
+                                                id="importTeamFile" 
+                                                style={{display: 'none'}} 
+                                                accept=".csv"
+                                                onChange={handleTeamFileImport}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Tabs for Table and Hierarchy */}
+                                <ul className="nav nav-tabs mb-3">
+                                    <li className="nav-item">
+                                        <button 
+                                            className={`nav-link ${activeTab === 'table' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('table')}
+                                        >
+                                            <i className="fas fa-table me-1"></i> Table View
+                                        </button>
+                                    </li>
+                                    <li className="nav-item">
+                                        <button 
+                                            className={`nav-link ${activeTab === 'hierarchy' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('hierarchy')}
+                                        >
+                                            <i className="fas fa-diagram-project me-1"></i> Hierarchy View
+                                        </button>
+                                    </li>
+                                </ul>
+
+                                {activeTab === 'table' && (
+                                    <div className="table-responsive">
+                                        <table className="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Level</th>
+                                                    <th>Work Group</th>
+                                                    <th>Manager</th>
+                                                    <th>Status</th>
+                                                    {isEditMode && <th>Actions</th>}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {teamMembers.map(member => {
+                                                    const manager = teamMembers.find(m => m.login === member.manager);
+                                                    const displayLevel = determineActualLevel(member, teamMembers);
+                                                    const levelClass = member.isPlaceholder ? 'placeholder' : 
+                                                                      displayLevel === 'L4 IC' ? 'l4-ic' : 
+                                                                      displayLevel.toLowerCase().replace(' ', '-');
+                                                    
+                                                    return (
+                                                        <tr key={member.id} className={member.isPlaceholder ? 'placeholder-member' : ''}>
+                                                            <td>
+                                                                <div className="d-flex align-items-center">
+                                                                    <div 
+                                                                        className="hierarchy-icon"
+                                                                        style={{ 
+                                                                            backgroundColor: `var(--level-${levelClass})`,
+                                                                            color: 'white'
+                                                                        }}
+                                                                    >
+                                                                        {member.isPlaceholder ? '?' : 
+                                                                         displayLevel === 'L4' ? 'M' :
+                                                                         displayLevel === 'L4 IC' ? 'IC' :
+                                                                         member.level.charAt(1)}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="fw-bold">
+                                                                            {member.name}
+                                                                            {member.isPlaceholder && <span className="badge bg-warning ms-2">Placeholder</span>}
+                                                                        </div>
+                                                                        <div className="small text-muted">{member.login}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <span className={`badge bg-${member.isPlaceholder ? 'secondary' : 'primary'}`}>
+                                                                    {displayLevel}
+                                                                </span>
+                                                            </td>
+                                                            <td>{member.workGroup || '-'}</td>
+                                                            <td>{manager ? manager.name : 'None'}</td>
+                                                            <td>
+                                                                {(() => {
+                                                                    const today = new Date().toISOString().split('T')[0];
+                                                                    const leaves = getCurrentLeaveRecords();
+                                                                    const memberLeaves = leaves.filter(leave => leave.employee === member.name);
+                                                                    
+                                                                    const isOnLeaveToday = memberLeaves.some(leave => 
+                                                                        leave.from <= today && leave.to >= today
+                                                                    );
+                                                                    
+                                                                    if (isOnLeaveToday) {
+                                                                        return <span className="badge bg-danger leave-status-badge">On Leave</span>;
+                                                                    }
+                                                                    
+                                                                    return <span className="badge bg-success leave-status-badge">Active</span>;
+                                                                })()}
+                                                            </td>
+                                                            {isEditMode && (
+                                                                <td>
+                                                                    <button 
+                                                                        className="btn btn-sm btn-outline-danger"
+                                                                        onClick={() => deleteMember(member.id)}
+                                                                    >
+                                                                        <i className="fas fa-trash-alt"></i>
+                                                                    </button>
+                                                                </td>
+                                                            )}
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {activeTab === 'hierarchy' && (
+                                    <HierarchyTree 
+                                        members={teamMembers} 
+                                        onDelete={deleteMember}
+                                        isEditMode={isEditMode}
+                                    />
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Leave Management Section */}
+                        <div className="card mb-4">
+                            <div className="card-header d-flex justify-content-between align-items-center">
+                                <h5 className="mb-0">
+                                    <i className="fas fa-calendar-alt me-2"></i>
+                                    Leave Management ({getCurrentLeaveRecords().length} records)
+                                </h5>
+                                <button 
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => setShowLeaveForm(true)}
+                                >
+                                    <i className="fas fa-plus me-1"></i> Add Leave
+                                </button>
+                            </div>
+                            
+                            <div className="card-body">
+                                {/* Add Leave Form */}
+                                {showLeaveForm && (
+                                    <div className="card bg-light mb-4">
+                                        <div className="card-body">
+                                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 className="mb-0">Add New Leave Record</h6>
+                                                <button 
+                                                    className="btn-close" 
+                                                    onClick={() => setShowLeaveForm(false)}
+                                                ></button>
+                                            </div>
+                                            <div className="row g-3">
+                                                <div className="col-md-6">
+                                                    <label className="form-label">Employee *</label>
+                                                    <select
+                                                        className="form-select"
+                                                        value={newLeave.employee}
+                                                        onChange={e => setNewLeave({...newLeave, employee: e.target.value})}
+                                                    >
+                                                        <option value="">Select Employee</option>
+                                                        {teamMembers
+                                                            .filter(m => !m.isPlaceholder)
+                                                            .map(member => (
+                                                                <option key={member.id} value={member.name}>
+                                                                    {member.name} ({member.login})
+                                                                </option>
+                                                            ))}
+                                                    </select>
+                                                </div>
+                                                
+                                                <div className="col-md-6">
+                                                    <label className="form-label">Leave Type *</label>
+                                                    <select
+                                                        className="form-select"
+                                                        value={newLeave.type}
+                                                        onChange={e => setNewLeave({...newLeave, type: e.target.value})}
+                                                    >
+                                                        <option value="Vacation">Vacation</option>
+                                                        <option value="Sick">Sick Leave</option>
+                                                        <option value="Personal">Personal Day</option>
+                                                        <option value="Bereavement">Bereavement</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div className="col-md-6">
+                                                    <label className="form-label">From Date *</label>
+                                                    <input
+                                                        type="date"
+                                                        className="form-control"
+                                                        value={newLeave.from}
+                                                        onChange={e => setNewLeave({...newLeave, from: e.target.value})}
+                                                    />
+                                                </div>
+                                                
+                                                <div className="col-md-6">
+                                                    <label className="form-label">To Date {!newLeave.isSingleDay && '*'}</label>
+                                                    <input
+                                                        type="date"
+                                                        className="form-control"
+                                                        value={newLeave.to}
+                                                        onChange={e => setNewLeave({...newLeave, to: e.target.value})}
+                                                        disabled={newLeave.isSingleDay}
+                                                    />
+                                                </div>
+                                                
+                                                <div className="col-md-6">
+                                                    <div className="form-check">
+                                                        <input
+                                                            className="form-check-input"
+                                                            type="checkbox"
+                                                            checked={newLeave.isSingleDay}
+                                                            onChange={e => setNewLeave({
+                                                                ...newLeave, 
+                                                                isSingleDay: e.target.checked,
+                                                                to: e.target.checked ? newLeave.from : newLeave.to
+                                                            })}
+                                                        />
+                                                        <label className="form-check-label">
+                                                            Single Day Leave
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="col-md-6">
+                                                    <label className="form-label">Hours *</label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control"
+                                                        min="1"
+                                                        max="24"
+                                                        value={newLeave.hours}
+                                                        onChange={e => setNewLeave({...newLeave, hours: parseInt(e.target.value) || 8})}
+                                                    />
+                                                </div>
+                                                
+                                                <div className="col-md-12 d-flex justify-content-end gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowLeaveForm(false);
+                                                            setNewLeave({
+                                                                employee: '',
+                                                                type: 'Vacation',
+                                                                from: '',
+                                                                to: '',
+                                                                hours: 8,
+                                                                isSingleDay: false
+                                                            });
+                                                        }}
+                                                        className="btn btn-outline-secondary"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        onClick={addNewLeave}
+                                                        className="btn btn-success"
+                                                    >
+                                                        Add Leave
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Summary Cards */}
+                                <div className="row mb-4">
+                                    <div className="col-md-6 mb-3 mb-md-0">
+                                        <div className="card summary-card today-leave">
+                                            <div className="card-body">
+                                                <div className="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6 className="text-muted mb-2">Today's Leaves</h6>
+                                                        <h3 className="mb-0">{leaveSummary.today.length}</h3>
+                                                    </div>
+                                                    <div className="display-4 text-danger">
+                                                        <i className="fas fa-calendar-day"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="col-md-6">
+                                        <div className="card summary-card upcoming-leave">
+                                            <div className="card-body">
+                                                <div className="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h6 className="text-muted mb-2">Upcoming Leaves (7 days)</h6>
+                                                        <h3 className="mb-0">{leaveSummary.upcoming.length}</h3>
+                                                    </div>
+                                                    <div className="display-4 text-warning">
+                                                        <i className="fas fa-calendar-week"></i>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Leave Table */}
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <h6>Leave Records</h6>
+                                    <div className="d-flex">
+                                        <input
+                                            type="text"
+                                            className="form-control form-control-sm me-2"
+                                            placeholder="Search leaves..."
+                                            value={leaveSearchTerm}
+                                            onChange={e => setLeaveSearchTerm(e.target.value)}
+                                            style={{width: '200px'}}
+                                        />
+                                        <button 
+                                            className="btn btn-sm btn-outline-secondary"
+                                            onClick={() => document.getElementById('importLeaveFile').click()}
+                                        >
+                                            <i className="fas fa-upload me-1"></i>Import
+                                            <input 
+                                                type="file" 
+                                                id="importLeaveFile" 
+                                                style={{display: 'none'}} 
+                                                accept=".csv"
+                                                onChange={handleFileImport}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                {filteredLeaves.length === 0 ? (
+                                    <div className="text-center py-4">
+                                        <div className="text-muted mb-3">
+                                            <i className="fas fa-calendar-times fa-2x"></i>
+                                        </div>
+                                        <p>No leave records found</p>
+                                        <button 
+                                            className="btn btn-sm btn-primary"
+                                            onClick={() => setShowLeaveForm(true)}
+                                        >
+                                            <i className="fas fa-plus me-1"></i> Add First Leave
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="table-responsive">
+                                        <table className="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Employee</th>
+                                                    <th>Type</th>
+                                                    <th>From</th>
+                                                    <th>To</th>
+                                                    <th>Duration</th>
+                                                    <th>Applied On</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filteredLeaves.map(leave => {
+                                                    const fromDate = new Date(leave.from);
+                                                    const toDate = new Date(leave.to);
+                                                    const duration = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
+                                                    
+                                                    return (
+                                                        <tr key={leave.id}>
+                                                            <td>{leave.employee}</td>
+                                                            <td>
+                                                                <span className="badge bg-info">
+                                                                    {leave.type}
+                                                                </span>
+                                                            </td>
+                                                            <td>{leave.from}</td>
+                                                            <td>{leave.to}</td>
+                                                            <td>{duration} day(s)</td>
+                                                            <td>{leave.appliedAt}</td>
+                                                            <td>
+                                                                <button 
+                                                                    className="btn btn-sm btn-outline-danger"
+                                                                    onClick={() => deleteLeave(leave.id)}
+                                                                >
+                                                                    <i className="fas fa-trash-alt"></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Export Modal */}
+                    {showExportModal && (
+                        <div className="modal-backdrop">
+                            <div className="modal-dialog modal-dialog-centered">
+                                <div className="modal-content">
+                                    <div className="modal-header">
+                                        <h5 className="modal-title">Export Leave Records</h5>
+                                        <button 
+                                            className="btn-close" 
+                                            onClick={() => setShowExportModal(false)}
+                                        ></button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <div className="mb-3">
+                                            <label className="form-label">Format</label>
+                                            <select 
+                                                className="form-select"
+                                                value={exportFormat}
+                                                onChange={e => setExportFormat(e.target.value)}
+                                            >
+                                                <option value="csv">CSV</option>
+                                                <option value="json">JSON</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div className="mb-3">
+                                            <label className="form-label">Date Range (Optional)</label>
+                                            <div className="row g-2">
+                                                <div className="col">
+                                                    <input 
+                                                        type="date" 
+                                                        className="form-control" 
+                                                        placeholder="Start Date"
+                                                        value={exportDateRange.start}
+                                                        onChange={e => setExportDateRange({...exportDateRange, start: e.target.value})}
+                                                    />
+                                                </div>
+                                                <div className="col">
+                                                    <input 
+                                                        type="date" 
+                                                        className="form-control" 
+                                                        placeholder="End Date"
+                                                        value={exportDateRange.end}
+                                                        onChange={e => setExportDateRange({...exportDateRange, end: e.target.value})}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="modal-footer">
+                                        <button 
+                                            className="btn btn-secondary" 
+                                            onClick={() => setShowExportModal(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button 
+                                            className="btn btn-primary" 
+                                            onClick={exportData}
+                                        >
+                                            Export Data
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Import Modal */}
+                    {showImportModal && (
+                        <div className="modal-backdrop">
+                            <div className="modal-dialog modal-dialog-centered">
+                                <div className="modal-content">
+                                    <div className="modal-header">
+                                        <h5 className="modal-title">Confirm Import</h5>
+                                        <button 
+                                            className="btn-close" 
+                                            onClick={() => setShowImportModal(false)}
+                                        ></button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <p>
+                                            You are about to import <strong>{importedLeaveData.length}</strong> leave records.
+                                            Please review the first few records:
+                                        </p>
+                                        
+                                        <div className="table-responsive">
+                                            <table className="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Employee</th>
+                                                        <th>Type</th>
+                                                        <th>From</th>
+                                                        <th>To</th>
+                                                        <th>Hours</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {importedLeaveData.slice(0, 5).map((record, index) => (
+                                                        <tr key={index}>
+                                                            <td>{record.employee}</td>
+                                                            <td>{record.type}</td>
+                                                            <td>{record.from}</td>
+                                                            <td>{record.to}</td>
+                                                            <td>{record.hours}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div className="modal-footer">
+                                        <button 
+                                            className="btn btn-secondary" 
+                                            onClick={() => setShowImportModal(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button 
+                                            className="btn btn-primary" 
+                                            onClick={confirmImport}
+                                        >
+                                            Confirm Import
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Team Import Modal */}
+                    {showTeamImportModal && (
+                        <div className="modal-backdrop">
+                            <div className="modal-dialog modal-dialog-centered">
+                                <div className="modal-content">
+                                    <div className="modal-header">
+                                        <h5 className="modal-title">Confirm Team Import</h5>
+                                        <button 
+                                            className="btn-close" 
+                                            onClick={() => setShowTeamImportModal(false)}
+                                        ></button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <p>
+                                            You are about to import <strong>{importedTeamData.length}</strong> team members.
+                                            Please review the first few members:
+                                        </p>
+                                        
+                                        <div className="table-responsive">
+                                            <table className="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Login</th>
+                                                        <th>Level</th>
+                                                        <th>WorkGroup</th>
+                                                        <th>Manager</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {importedTeamData.slice(0, 5).map((member, index) => (
+                                                        <tr key={index}>
+                                                            <td>{member.name}</td>
+                                                            <td>{member.login}</td>
+                                                            <td>{member.level}</td>
+                                                            <td>{member.workGroup}</td>
+                                                            <td>{member.manager || '-'}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div className="modal-footer">
+                                        <button 
+                                            className="btn btn-secondary" 
+                                            onClick={() => setShowTeamImportModal(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button 
+                                            className="btn btn-primary" 
+                                            onClick={confirmTeamImport}
+                                        >
+                                            Confirm Import
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<LeaveManagementSystem />, document.getElementById('root'));
+    </script>
+</body>
+</html>
