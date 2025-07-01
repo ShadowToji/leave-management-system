@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -190,6 +191,15 @@
             text-align: center;
             margin-bottom: 1.5rem;
         }
+
+        .leave-info {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .leave-info .badge {
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -200,9 +210,36 @@
         const { useState, useEffect, useRef } = React;
 
         // Recursive component for hierarchy tree
-        const HierarchyTree = ({ members, onDelete, onEdit, isEditMode }) => {
+        const HierarchyTree = ({ members, onDelete, onEdit, isEditMode, allLeaveRecords, allTeamsData }) => {
             const [expandedNodes, setExpandedNodes] = useState({});
             const initialized = useRef(false);
+
+            // Utility to check if a date falls within the current month
+            const isCurrentMonth = (dateString) => {
+                const today = new Date();
+                const currentMonth = today.getMonth();
+                const currentYear = today.getFullYear();
+
+                const date = new Date(dateString);
+                return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+            };
+
+            // Get direct reports for a manager who are on leave in the current month
+            const getLeavesForReports = (managerLogin) => {
+                const managerReports = members.filter(member => member.manager === managerLogin && !member.isPlaceholder);
+                const currentMonthLeaves = [];
+
+                managerReports.forEach(report => {
+                    const leaves = allLeaveRecords.filter(
+                        leave => leave.employee === report.name &&
+                                 (isCurrentMonth(leave.from) || isCurrentMonth(leave.to)) // Check if either start or end date is in current month
+                    );
+                    if (leaves.length > 0) {
+                        currentMonthLeaves.push(report.name);
+                    }
+                });
+                return currentMonthLeaves;
+            };
 
             // Build tree structure
             const buildTree = (managerId = '') => {
@@ -246,6 +283,9 @@
                 const isExpanded = expandedNodes[node.id];
                 const hasChildren = node.children && node.children.length > 0;
                 const displayLevel = getDisplayLevel(node);
+                const isManager = displayLevel === 'l4'; // Assuming L4 is manager level
+
+                const employeesOnLeave = isManager ? getLeavesForReports(node.login) : [];
 
                 return (
                     <div key={node.id} className="mb-2">
@@ -285,6 +325,17 @@
                                                  (displayLevel === 'l4' ? 'L4 Manager' :
                                                   displayLevel === 'l4-ic' ? 'L4 IC' : node.level)}
                                             </div>
+                                            {isManager && employeesOnLeave.length > 0 && (
+                                                <div className="leave-info mt-1">
+                                                    <i className="fas fa-calendar-alt me-1"></i>
+                                                    <span className="fw-bold">This Month:</span>
+                                                    {employeesOnLeave.map((employeeName, index) => (
+                                                        <span key={index} className="badge bg-info text-dark me-1">
+                                                            {employeeName}
+                                                        </span>
+                                                    ))} on Leave
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -960,7 +1011,6 @@
                             workGroup: record.WorkGroup || '',
                             manager: record.Manager || ''
                         }));
-
                         setImportedTeamData(importedData);
                         setShowTeamImportModal(true);
                     },
@@ -973,8 +1023,8 @@
 
             const confirmTeamImport = () => {
                 let currentTeamData = [...getCurrentTeamData()]; // Create a mutable copy
-                const updatedMembers = [...currentTeamData]; // Start with existing members
 
+                const updatedMembers = [...currentTeamData]; // Start with existing members
                 importedTeamData.forEach(importedMember => {
                     const existingMemberIndex = updatedMembers.findIndex(m => m.login === importedMember.login);
 
@@ -1037,7 +1087,6 @@
 
             const exportTeamData = () => {
                 const teamData = getCurrentTeamData().filter(member => !member.isPlaceholder);
-
                 const csv = Papa.unparse({
                     fields: ['Name', 'Login', 'Level', 'WorkGroup', 'Manager'],
                     data: teamData.map(member => [
@@ -1076,16 +1125,10 @@
                                 <div className="col-lg-8">
                                     <div className="text-center text-white mb-5">
                                         <h1 className="display-4 fw-bold mb-3">🏢 Enterprise Leave Management</h1>
-                                        <p className="lead mb-4">
-                                            Advanced team management with hierarchy tracking and leave planning
-                                        </p>
-
+                                        <p className="lead mb-4"> Advanced team management with hierarchy tracking and leave planning </p>
                                         {/* Back button when teams exist */}
                                         {userTeams.length > 0 && (
-                                            <button
-                                                className="btn btn-outline-light"
-                                                onClick={() => setCurrentView('teamSelect')}
-                                            >
+                                            <button className="btn btn-outline-light" onClick={() => setCurrentView('teamSelect')} >
                                                 <i className="fas fa-arrow-left me-2"></i> Select Existing Team
                                             </button>
                                         )}
@@ -1113,14 +1156,9 @@
                                     <div className="card">
                                         <div className="card-body p-4 p-md-5">
                                             <div className="text-center mb-4">
-                                                <h2>
-                                                    {userTeams.length > 0
-                                                     ? 'Create a New Team'
-                                                     : 'Create Your First Team'}
-                                                </h2>
+                                                <h2> {userTeams.length > 0 ? 'Create a New Team' : 'Create Your First Team'} </h2>
                                                 <p className="text-muted">Get started by setting up your team workspace</p>
                                             </div>
-
                                             <div className="row g-3 mb-4">
                                                 <div className="col-md-6">
                                                     <label className="form-label fw-bold">Team Name *</label>
@@ -1132,7 +1170,6 @@
                                                         onChange={(e) => setNewTeam({...newTeam, name: e.target.value})}
                                                     />
                                                 </div>
-
                                                 <div className="col-md-6">
                                                     <label className="form-label fw-bold">Dashboard Title *</label>
                                                     <input
@@ -1144,7 +1181,6 @@
                                                     />
                                                 </div>
                                             </div>
-
                                             <div className="mb-4">
                                                 <label className="form-label fw-bold">Description (Optional)</label>
                                                 <textarea
@@ -1155,7 +1191,6 @@
                                                     placeholder="Describe your team's purpose and objectives"
                                                 />
                                             </div>
-
                                             <div className="d-grid">
                                                 <button
                                                     onClick={createTeam}
@@ -1181,14 +1216,8 @@
                             <div className="row justify-content-center">
                                 <div className="col-lg-10">
                                     <div className="d-flex justify-content-between align-items-center mb-4">
-                                        <h2>
-                                            <i className="fas fa-building me-2"></i>
-                                            Your Teams ({userTeams.length})
-                                        </h2>
-                                        <button
-                                            className="btn btn-primary"
-                                            onClick={() => setCurrentView('welcome')}
-                                        >
+                                        <h2> <i className="fas fa-building me-2"></i> Your Teams ({userTeams.length}) </h2>
+                                        <button className="btn btn-primary" onClick={() => setCurrentView('welcome')} >
                                             <i className="fas fa-plus me-2"></i>Create New Team
                                         </button>
                                     </div>
@@ -1201,10 +1230,7 @@
                                                 </div>
                                                 <h4>No Teams Found</h4>
                                                 <p className="text-muted mb-4">You haven't created any teams yet</p>
-                                                <button
-                                                    className="btn btn-primary"
-                                                    onClick={() => setCurrentView('welcome')}
-                                                >
+                                                <button className="btn btn-primary" onClick={() => setCurrentView('welcome')} >
                                                     Create Your First Team
                                                 </button>
                                             </div>
@@ -1214,23 +1240,18 @@
                                             {userTeams.map(team => {
                                                 const teamData = allTeamsData[team] || [];
                                                 const realMembers = teamData.filter(m => !m.isPlaceholder);
-
                                                 return (
                                                     <div className="col" key={team}>
                                                         <div className="card team-card h-100">
                                                             <div className="card-header d-flex justify-content-between align-items-center">
                                                                 <h5 className="mb-0">{team}</h5>
                                                                 <div className="dropdown">
-                                                                    <button className="btn btn-sm btn-outline-secondary dropdown-toggle"
-                                                                            type="button" data-bs-toggle="dropdown">
+                                                                    <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                                                         <i className="fas fa-ellipsis-v"></i>
                                                                     </button>
                                                                     <ul className="dropdown-menu">
                                                                         <li>
-                                                                            <button
-                                                                                className="dropdown-item text-danger"
-                                                                                onClick={() => deleteTeam(team)}
-                                                                            >
+                                                                            <button className="dropdown-item text-danger" onClick={() => deleteTeam(team)} >
                                                                                 <i className="fas fa-trash-alt me-2"></i>Delete Team
                                                                             </button>
                                                                         </li>
@@ -1244,7 +1265,6 @@
                                                                 <p className="text-muted small mb-3">
                                                                     {teamsMetadata[team]?.description || 'No description provided'}
                                                                 </p>
-
                                                                 <div className="text-center mb-3">
                                                                     <div className="border rounded p-3">
                                                                         <div className="fw-bold text-primary">{realMembers.length}</div>
@@ -1260,8 +1280,7 @@
                                                                         setCurrentView('teamDashboard');
                                                                     }}
                                                                 >
-                                                                    <i className="fas fa-arrow-right me-2"></i>
-                                                                    Open Dashboard
+                                                                    <i className="fas fa-arrow-right me-2"></i> Open Dashboard
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -1284,10 +1303,7 @@
                     <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
                         <div className="container-fluid">
                             <div className="d-flex align-items-center">
-                                <button
-                                    className="btn btn-outline-light btn-sm me-3"
-                                    onClick={() => setCurrentView('teamSelect')}
-                                >
+                                <button className="btn btn-outline-light btn-sm me-3" onClick={() => setCurrentView('teamSelect')} >
                                     <i className="fas fa-arrow-left me-1"></i>Teams
                                 </button>
                                 <div className="flex-grow-1">
@@ -1297,7 +1313,6 @@
                                     </small>
                                 </div>
                             </div>
-
                             <div className="d-flex align-items-center">
                                 <span className="text-light me-3 d-none d-md-block">
                                     <i className="fas fa-user me-1"></i>{currentUser}
@@ -1317,448 +1332,183 @@
                         <div className="card mb-4">
                             <div className="card-header d-flex flex-wrap justify-content-between align-items-center">
                                 <h5 className="mb-2 mb-md-0">
-                                    <i className="fas fa-sitemap me-2"></i>
-                                    Team Structure ({teamMembers.filter(m => !m.isPlaceholder).length} members, {teamMembers.filter(m => m.isPlaceholder).length} pending)
+                                    <i className="fas fa-sitemap me-2"></i> Team Structure ({teamMembers.filter(m => !m.isPlaceholder).length} members, {teamMembers.filter(m => m.isPlaceholder).length} pending)
                                 </h5>
-
                                 <div className="d-flex align-items-center flex-wrap gap-2">
                                     {isEditMode && (
-                                        <button
-                                            onClick={() => setShowAddForm(!showAddForm)}
-                                            className="btn btn-success btn-sm"
-                                        >
-                                            <i className="fas fa-plus me-1"></i> Add Member
+                                        <button onClick={() => setShowAddForm(!showAddForm)} className="btn btn-sm btn-success">
+                                            <i className="fas fa-user-plus me-1"></i> Add Member
                                         </button>
                                     )}
-
-                                    <div className="btn-group">
-                                        <button
-                                            className="btn btn-outline-primary btn-sm"
-                                            onClick={exportTeamData}
-                                        >
-                                            <i className="fas fa-file-export me-1"></i> Export Team
+                                    <div className="dropdown">
+                                        <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i className="fas fa-file-export me-1"></i> Data Options
                                         </button>
-                                        <button
-                                            className="btn btn-outline-primary btn-sm"
-                                            onClick={downloadTeamTemplate}
-                                        >
-                                            <i className="fas fa-download me-1"></i> Get Template
-                                        </button>
-                                    </div>
-
-                                    <div className="btn-group">
-                                        <button
-                                            className="btn btn-outline-secondary btn-sm"
-                                            onClick={() => document.getElementById('importLeaveFile').click()}
-                                        >
-                                            <i className="fas fa-upload me-1"></i>Import Leaves
-                                            <input
-                                                type="file"
-                                                id="importLeaveFile"
-                                                style={{display: 'none'}}
-                                                accept=".csv"
-                                                onChange={handleFileImport}
-                                            />
-                                        </button>
-                                        <button
-                                            className="btn btn-outline-secondary btn-sm"
-                                            onClick={() => setShowExportModal(true)}
-                                        >
-                                            <i className="fas fa-file-export me-1"></i> Export Leaves
-                                        </button>
+                                        <ul className="dropdown-menu">
+                                            <li>
+                                                <button className="dropdown-item" onClick={downloadTeamTemplate}>
+                                                    <i className="fas fa-download me-2"></i> Download Team Template
+                                                </button>
+                                            </li>
+                                            <li><hr className="dropdown-divider"/></li>
+                                            <li>
+                                                <label className="dropdown-item" style={{ cursor: 'pointer' }}>
+                                                    <i className="fas fa-file-import me-2"></i> Import Team Members
+                                                    <input type="file" accept=".csv" onChange={handleTeamFileImport} style={{ display: 'none' }} />
+                                                </label>
+                                            </li>
+                                            <li>
+                                                <button className="dropdown-item" onClick={exportTeamData}>
+                                                    <i className="fas fa-file-export me-2"></i> Export Team Members
+                                                </button>
+                                            </li>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
-
                             <div className="card-body">
-                                {/* Add Member Form */}
-                                {isEditMode && showAddForm && (
-                                    <div className="card bg-light mb-4">
-                                        <div className="card-body">
-                                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                                <h6 className="mb-0">Add New Team Member</h6>
-                                                <button
-                                                    className="btn-close"
-                                                    onClick={() => setShowAddForm(false)}
-                                                ></button>
+                                {showAddForm && (
+                                    <div className="mb-4 p-3 border rounded bg-light">
+                                        <h5>Add New Member</h5>
+                                        <div className="row g-3">
+                                            <div className="col-md-6">
+                                                <label className="form-label">Name <span className="text-danger">*</span></label>
+                                                <input type="text" className={`form-control ${formErrors.name ? 'is-invalid' : ''}`} value={newMember.name} onChange={(e) => setNewMember({...newMember, name: e.target.value})} placeholder="Full Name" />
+                                                {formErrors.name && <div className="invalid-feedback">{formErrors.name}</div>}
                                             </div>
-                                            <div className="row g-3">
-                                                <div className="col-md-6">
-                                                    <label className="form-label">Full Name *</label>
-                                                    <input
-                                                        type="text"
-                                                        className={`form-control ${formErrors.name ? 'is-invalid' : ''}`}
-                                                        placeholder="Enter full name"
-                                                        value={newMember.name}
-                                                        onChange={e => setNewMember({...newMember, name: e.target.value})}
-                                                    />
-                                                    {formErrors.name && <div className="form-error">{formErrors.name}</div>}
-                                                </div>
-
-                                                <div className="col-md-6">
-                                                    <label className="form-label">Login ID *</label>
-                                                    <input
-                                                        type="text"
-                                                        className={`form-control ${formErrors.login ? 'is-invalid' : ''}`}
-                                                        placeholder="email@company.com"
-                                                        value={newMember.login}
-                                                        onChange={e => setNewMember({...newMember, login: e.target.value})}
-                                                    />
-                                                    {formErrors.login && <div className="form-error">{formErrors.login}</div>}
-                                                </div>
-
-                                                <div className="col-md-6">
-                                                    <label className="form-label">Level *</label>
-                                                    <select
-                                                        className={`form-select ${formErrors.level ? 'is-invalid' : ''}`}
-                                                        value={newMember.level}
-                                                        onChange={e => setNewMember({...newMember, level: e.target.value})}
-                                                    >
-                                                        <option value="">Select Level</option>
-                                                        <option value="L8">L8 (Director+)</option>
-                                                        <option value="L7">L7 (Senior Manager)</option>
-                                                        <option value="L6">L6 (Manager)</option>
-                                                        <option value="L5">L5 (Senior Engineer)</option>
-                                                        <option value="L4">L4 (Engineer)</option>
-                                                    </select>
-                                                    {formErrors.level && <div className="form-error">{formErrors.level}</div>}
-                                                </div>
-
-                                                <div className="col-md-6">
-                                                    <label className="form-label">Work Group</label>
-                                                    <input
-                                                        type="text"
-                                                        className="form-control"
-                                                        placeholder="e.g., Engineering, Product, etc."
-                                                        value={newMember.workGroup}
-                                                        onChange={e => setNewMember({...newMember, workGroup: e.target.value})}
-                                                    />
-                                                </div>
-
-                                                <div className="col-md-12">
-                                                    <label className="form-label">Manager Login ID</label>
-                                                    <input
-                                                        type="text"
-                                                        className="form-control"
-                                                        placeholder="manager@company.com (leave empty for top level)"
-                                                        value={newMember.manager}
-                                                        onChange={e => setNewMember({...newMember, manager: e.target.value})}
-                                                    />
-                                                    <small className="text-muted">
-                                                        Enter manager's login ID. If manager doesn't exist in team, a placeholder will be created.
-                                                    </small>
-                                                </div>
-
-                                                <div className="col-md-12 d-flex justify-content-end gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            setShowAddForm(false);
-                                                            setFormErrors({});
-                                                        }}
-                                                        className="btn btn-outline-secondary"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                    <button
-                                                        onClick={addNewMember}
-                                                        className="btn btn-success"
-                                                    >
-                                                        Add Member
-                                                    </button>
-                                                </div>
+                                            <div className="col-md-6">
+                                                <label className="form-label">Login ID <span className="text-danger">*</span></label>
+                                                <input type="text" className={`form-control ${formErrors.login ? 'is-invalid' : ''}`} value={newMember.login} onChange={(e) => setNewMember({...newMember, login: e.target.value})} placeholder="e.g., john.doe@company.com" />
+                                                {formErrors.login && <div className="invalid-feedback">{formErrors.login}</div>}
+                                            </div>
+                                            <div className="col-md-6">
+                                                <label className="form-label">Level <span className="text-danger">*</span></label>
+                                                <select className={`form-select ${formErrors.level ? 'is-invalid' : ''}`} value={newMember.level} onChange={(e) => setNewMember({...newMember, level: e.target.value})}>
+                                                    <option value="">Select Level</option>
+                                                    <option value="L8">L8</option>
+                                                    <option value="L7">L7</option>
+                                                    <option value="L6">L6</option>
+                                                    <option value="L5">L5</option>
+                                                    <option value="L4">L4</option>
+                                                    <option value="L3">L3</option>
+                                                    <option value="L2">L2</option>
+                                                    <option value="L1">L1</option>
+                                                </select>
+                                                {formErrors.level && <div className="invalid-feedback">{formErrors.level}</div>}
+                                            </div>
+                                            <div className="col-md-6">
+                                                <label className="form-label">Work Group</label>
+                                                <input type="text" className="form-control" value={newMember.workGroup} onChange={(e) => setNewMember({...newMember, workGroup: e.target.value})} placeholder="e.g., Frontend, Backend, HR" />
+                                            </div>
+                                            <div className="col-md-6">
+                                                <label className="form-label">Manager Login ID</label>
+                                                <input type="text" className="form-control" value={newMember.manager} onChange={(e) => setNewMember({...newMember, manager: e.target.value})} placeholder="Manager's Login ID" />
+                                                <small className="form-text text-muted">
+                                                    Leave empty for top-level members. Managers should be added as members first.
+                                                </small>
+                                            </div>
+                                            <div className="col-12 text-end">
+                                                <button className="btn btn-secondary me-2" onClick={() => { setShowAddForm(false); setNewMember({name: '', login: '', level: '', workGroup: '', manager: ''}); setFormErrors({}); }}>Cancel</button>
+                                                <button className="btn btn-primary" onClick={addNewMember}>Add Member</button>
                                             </div>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Import Section */}
-                                <div className="template-download-section mb-4">
-                                    <h6><i className="fas fa-file-import me-2"></i>Import Team Members</h6>
-                                    <p className="text-muted mb-3">Import multiple team members using a CSV file</p>
-                                    <div className="d-flex justify-content-center gap-3">
-                                        <button
-                                            className="btn btn-outline-primary"
-                                            onClick={downloadTeamTemplate}
-                                        >
-                                            <i className="fas fa-download me-2"></i>Download Template
-                                        </button>
-                                        <button
-                                            className="btn btn-primary"
-                                            onClick={() => document.getElementById('importTeamFile').click()}
-                                        >
-                                            <i className="fas fa-upload me-2"></i>Upload CSV File
-                                            <input
-                                                type="file"
-                                                id="importTeamFile"
-                                                style={{display: 'none'}}
-                                                accept=".csv"
-                                                onChange={handleTeamFileImport}
-                                            />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Tabs for Table and Hierarchy */}
-                                <ul className="nav nav-tabs mb-3">
-                                    <li className="nav-item">
-                                        <button
-                                            className={`nav-link ${activeTab === 'table' ? 'active' : ''}`}
-                                            onClick={() => setActiveTab('table')}
-                                        >
-                                            <i className="fas fa-table me-1"></i> Table View
-                                        </button>
-                                    </li>
-                                    <li className="nav-item">
-                                        <button
-                                            className={`nav-link ${activeTab === 'hierarchy' ? 'active' : ''}`}
-                                            onClick={() => setActiveTab('hierarchy')}
-                                        >
-                                            <i className="fas fa-diagram-project me-1"></i> Hierarchy View
-                                        </button>
-                                    </li>
-                                </ul>
-
-                                {activeTab === 'table' && (
-                                    <div className="table-responsive">
-                                        <table className="table table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>Name</th>
-                                                    <th>Level</th>
-                                                    <th>Work Group</th>
-                                                    <th>Manager</th>
-                                                    <th>Status</th>
-                                                    {isEditMode && <th>Actions</th>}
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {teamMembers.map(member => {
-                                                    const manager = teamMembers.find(m => m.login === member.manager);
-                                                    const displayLevel = determineActualLevel(member, teamMembers);
-                                                    const levelClass = member.isPlaceholder ? 'placeholder' :
-                                                                      displayLevel === 'L4 IC' ? 'l4-ic' :
-                                                                      displayLevel.toLowerCase().replace(' ', '-');
-
-                                                    return (
-                                                        <tr key={member.id} className={member.isPlaceholder ? 'placeholder-member' : ''}>
-                                                            <td>
-                                                                <div className="d-flex align-items-center">
-                                                                    <div
-                                                                        className="hierarchy-icon"
-                                                                        style={{
-                                                                            backgroundColor: `var(--level-${levelClass})`,
-                                                                            color: 'white'
-                                                                        }}
-                                                                    >
-                                                                        {member.isPlaceholder ? '?' :
-                                                                         displayLevel === 'L4' ? 'M' :
-                                                                         displayLevel === 'L4 IC' ? 'IC' :
-                                                                         member.level.charAt(1)}
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className="fw-bold">
-                                                                            {member.name}
-                                                                            {member.isPlaceholder && <span className="badge bg-warning ms-2">Placeholder</span>}
-                                                                        </div>
-                                                                        <div className="small text-muted">{member.login}</div>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <span className={`badge bg-${member.isPlaceholder ? 'secondary' : 'primary'}`}>
-                                                                    {displayLevel}
-                                                                </span>
-                                                            </td>
-                                                            <td>{member.workGroup || '-'}</td>
-                                                            <td>{manager ? manager.name : 'None'}</td>
-                                                            <td>
-                                                                {(() => {
-                                                                    const today = new Date().toISOString().split('T')[0];
-                                                                    const leaves = getCurrentLeaveRecords();
-                                                                    const memberLeaves = leaves.filter(leave => leave.employee === member.name);
-
-                                                                    const isOnLeaveToday = memberLeaves.some(leave =>
-                                                                        leave.from <= today && leave.to >= today
-                                                                    );
-
-                                                                    if (isOnLeaveToday) {
-                                                                        return <span className="badge bg-danger leave-status-badge">On Leave</span>;
-                                                                    }
-
-                                                                    return <span className="badge bg-success leave-status-badge">Active</span>;
-                                                                })()}
-                                                            </td>
-                                                            {isEditMode && (
-                                                                <td>
-                                                                    <button
-                                                                        className="btn btn-sm btn-outline-info me-2"
-                                                                        onClick={() => handleEditClick(member)}
-                                                                    >
-                                                                        <i className="fas fa-edit"></i>
-                                                                    </button>
-                                                                    <button
-                                                                        className="btn btn-sm btn-outline-danger"
-                                                                        onClick={() => deleteMember(member.id)}
-                                                                    >
-                                                                        <i className="fas fa-trash-alt"></i>
-                                                                    </button>
-                                                                </td>
-                                                            )}
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-
-                                {activeTab === 'hierarchy' && (
-                                    <HierarchyTree
-                                        members={teamMembers}
-                                        onDelete={deleteMember}
-                                        onEdit={handleEditClick}
-                                        isEditMode={isEditMode}
-                                    />
-                                )}
+                                {/* Pass allLeaveRecords and teamMembers to HierarchyTree */}
+                                <HierarchyTree
+                                    members={teamMembers}
+                                    onDelete={deleteMember}
+                                    onEdit={handleEditClick}
+                                    isEditMode={isEditMode}
+                                    allLeaveRecords={getCurrentLeaveRecords()}
+                                    allTeamsData={teamMembers} // Pass current team's members data
+                                />
                             </div>
                         </div>
 
                         {/* Leave Management Section */}
                         <div className="card mb-4">
-                            <div className="card-header d-flex justify-content-between align-items-center">
-                                <h5 className="mb-0">
-                                    <i className="fas fa-calendar-alt me-2"></i>
-                                    Leave Management ({getCurrentLeaveRecords().length} records)
+                            <div className="card-header d-flex flex-wrap justify-content-between align-items-center">
+                                <h5 className="mb-2 mb-md-0">
+                                    <i className="fas fa-calendar-alt me-2"></i> Leave Records ({getCurrentLeaveRecords().length})
                                 </h5>
-                                <button
-                                    className="btn btn-primary btn-sm"
-                                    onClick={() => setShowLeaveForm(true)}
-                                >
-                                    <i className="fas fa-plus me-1"></i> Add Leave
-                                </button>
+                                <div className="d-flex align-items-center flex-wrap gap-2">
+                                    <button onClick={() => setShowLeaveForm(!showLeaveForm)} className="btn btn-sm btn-success">
+                                        <i className="fas fa-plus me-1"></i> Add Leave
+                                    </button>
+                                    <div className="dropdown">
+                                        <button className="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i className="fas fa-file-export me-1"></i> Data Options
+                                        </button>
+                                        <ul className="dropdown-menu">
+                                            <li>
+                                                <button className="dropdown-item" onClick={downloadLeaveTemplate}>
+                                                    <i className="fas fa-download me-2"></i> Download Leave Template
+                                                </button>
+                                            </li>
+                                            <li><hr className="dropdown-divider"/></li>
+                                            <li>
+                                                <label className="dropdown-item" style={{ cursor: 'pointer' }}>
+                                                    <i className="fas fa-file-import me-2"></i> Import Leave Records
+                                                    <input type="file" accept=".csv" onChange={handleFileImport} style={{ display: 'none' }} />
+                                                </label>
+                                            </li>
+                                            <li>
+                                                <button className="dropdown-item" onClick={() => setShowExportModal(true)}>
+                                                    <i className="fas fa-file-export me-2"></i> Export Leave Records
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
-
                             <div className="card-body">
-                                {/* Add Leave Form */}
                                 {showLeaveForm && (
-                                    <div className="card bg-light mb-4">
-                                        <div className="card-body">
-                                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                                <h6 className="mb-0">Add New Leave Record</h6>
-                                                <button
-                                                    className="btn-close"
-                                                    onClick={() => setShowLeaveForm(false)}
-                                                ></button>
+                                    <div className="mb-4 p-3 border rounded bg-light">
+                                        <h5>Add New Leave</h5>
+                                        <div className="row g-3">
+                                            <div className="col-md-6">
+                                                <label className="form-label">Employee <span className="text-danger">*</span></label>
+                                                <select className="form-select" value={newLeave.employee} onChange={(e) => setNewLeave({...newLeave, employee: e.target.value})}>
+                                                    <option value="">Select Employee</option>
+                                                    {teamMembers.filter(m => !m.isPlaceholder).map(member => (
+                                                        <option key={member.id} value={member.name}>{member.name} ({member.login})</option>
+                                                    ))}
+                                                </select>
                                             </div>
-                                            <div className="row g-3">
-                                                <div className="col-md-6">
-                                                    <label className="form-label">Employee *</label>
-                                                    <select
-                                                        className="form-select"
-                                                        value={newLeave.employee}
-                                                        onChange={e => setNewLeave({...newLeave, employee: e.target.value})}
-                                                    >
-                                                        <option value="">Select Employee</option>
-                                                        {teamMembers
-                                                            .filter(m => !m.isPlaceholder)
-                                                            .map(member => (
-                                                                <option key={member.id} value={member.name}>
-                                                                    {member.name} ({member.login})
-                                                                </option>
-                                                            ))}
-                                                    </select>
+                                            <div className="col-md-6">
+                                                <label className="form-label">Type</label>
+                                                <select className="form-select" value={newLeave.type} onChange={(e) => setNewLeave({...newLeave, type: e.target.value})}>
+                                                    <option value="Vacation">Vacation</option>
+                                                    <option value="Sick">Sick</option>
+                                                    <option value="Personal">Personal</option>
+                                                    <option value="Bereavement">Bereavement</option>
+                                                </select>
+                                            </div>
+                                            <div className="col-md-4">
+                                                <label className="form-label">From Date <span className="text-danger">*</span></label>
+                                                <input type="date" className="form-control" value={newLeave.from} onChange={(e) => setNewLeave({...newLeave, from: e.target.value})} />
+                                            </div>
+                                            <div className="col-md-4">
+                                                <label className="form-label">To Date</label>
+                                                <input type="date" className="form-control" value={newLeave.to} onChange={(e) => setNewLeave({...newLeave, to: e.target.value})} disabled={newLeave.isSingleDay} />
+                                            </div>
+                                            <div className="col-md-2">
+                                                <label className="form-label">Hours/Day</label>
+                                                <input type="number" className="form-control" value={newLeave.hours} onChange={(e) => setNewLeave({...newLeave, hours: parseInt(e.target.value)})} min="1" max="24" />
+                                            </div>
+                                            <div className="col-md-2 d-flex align-items-end">
+                                                <div className="form-check">
+                                                    <input className="form-check-input" type="checkbox" id="singleDay" checked={newLeave.isSingleDay} onChange={(e) => setNewLeave({...newLeave, isSingleDay: e.target.checked})} />
+                                                    <label className="form-check-label" htmlFor="singleDay">
+                                                        Single Day
+                                                    </label>
                                                 </div>
-
-                                                <div className="col-md-6">
-                                                    <label className="form-label">Leave Type *</label>
-                                                    <select
-                                                        className="form-select"
-                                                        value={newLeave.type}
-                                                        onChange={e => setNewLeave({...newLeave, type: e.target.value})}
-                                                    >
-                                                        <option value="Vacation">Vacation</option>
-                                                        <option value="Sick">Sick Leave</option>
-                                                        <option value="Personal">Personal Day</option>
-                                                        <option value="Bereavement">Bereavement</option>
-                                                        <option value="Other">Other</option>
-                                                    </select>
-                                                </div>
-
-                                                <div className="col-md-6">
-                                                    <label className="form-label">From Date *</label>
-                                                    <input
-                                                        type="date"
-                                                        className="form-control"
-                                                        value={newLeave.from}
-                                                        onChange={e => setNewLeave({...newLeave, from: e.target.value})}
-                                                    />
-                                                </div>
-
-                                                <div className="col-md-6">
-                                                    <label className="form-label">To Date {!newLeave.isSingleDay && '*'}</label>
-                                                    <input
-                                                        type="date"
-                                                        className="form-control"
-                                                        value={newLeave.to}
-                                                        onChange={e => setNewLeave({...newLeave, to: e.target.value})}
-                                                        disabled={newLeave.isSingleDay}
-                                                    />
-                                                </div>
-
-                                                <div className="col-md-6">
-                                                    <div className="form-check">
-                                                        <input
-                                                            className="form-check-input"
-                                                            type="checkbox"
-                                                            checked={newLeave.isSingleDay}
-                                                            onChange={e => setNewLeave({
-                                                                ...newLeave,
-                                                                isSingleDay: e.target.checked,
-                                                                to: e.target.checked ? newLeave.from : newLeave.to
-                                                            })}
-                                                        />
-                                                        <label className="form-check-label">
-                                                            Single Day Leave
-                                                        </label>
-                                                    </div>
-                                                </div>
-
-                                                <div className="col-md-6">
-                                                    <label className="form-label">Hours *</label>
-                                                    <input
-                                                        type="number"
-                                                        className="form-control"
-                                                        min="1"
-                                                        max="24"
-                                                        value={newLeave.hours}
-                                                        onChange={e => setNewLeave({...newLeave, hours: parseInt(e.target.value) || 8})}
-                                                    />
-                                                </div>
-
-                                                <div className="col-md-12 d-flex justify-content-end gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            setShowLeaveForm(false);
-                                                            setNewLeave({
-                                                                employee: '',
-                                                                type: 'Vacation',
-                                                                from: '',
-                                                                to: '',
-                                                                hours: 8,
-                                                                isSingleDay: false
-                                                            });
-                                                        }}
-                                                        className="btn btn-outline-secondary"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                    <button
-                                                        onClick={addNewLeave}
-                                                        className="btn btn-success"
-                                                    >
-                                                        Add Leave
-                                                    </button>
-                                                </div>
+                                            </div>
+                                            <div className="col-12 text-end">
+                                                <button className="btn btn-secondary me-2" onClick={() => {setShowLeaveForm(false); setNewLeave({employee: '', type: 'Vacation', from: '', to: '', hours: 8, isSingleDay: false});}}>Cancel</button>
+                                                <button className="btn btn-primary" onClick={addNewLeave}>Add Leave</button>
                                             </div>
                                         </div>
                                     </div>
@@ -1766,125 +1516,119 @@
 
                                 {/* Summary Cards */}
                                 <div className="row mb-4">
-                                    <div className="col-md-6 mb-3 mb-md-0">
+                                    <div className="col-md-4">
                                         <div className="card summary-card today-leave">
                                             <div className="card-body">
-                                                <div className="d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <h6 className="text-muted mb-2">Today's Leaves</h6>
-                                                        <h3 className="mb-0">{leaveSummary.today.length}</h3>
-                                                    </div>
-                                                    <div className="display-4 text-danger">
-                                                        <i className="fas fa-calendar-day"></i>
-                                                    </div>
-                                                </div>
+                                                <h6 className="card-title text-danger">Today's Leaves</h6>
+                                                <h2 className="card-text">{leaveSummary.today.length}</h2>
+                                                {leaveSummary.today.length > 0 && (
+                                                    <small className="text-muted">
+                                                        {leaveSummary.today.map(l => l.employee).join(', ')}
+                                                    </small>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="col-md-6">
+                                    <div className="col-md-4">
                                         <div className="card summary-card upcoming-leave">
                                             <div className="card-body">
-                                                <div className="d-flex justify-content-between align-items-center">
-                                                    <div>
-                                                        <h6 className="text-muted mb-2">Upcoming Leaves (7 days)</h6>
-                                                        <h3 className="mb-0">{leaveSummary.upcoming.length}</h3>
-                                                    </div>
-                                                    <div className="display-4 text-warning">
-                                                        <i className="fas fa-calendar-week"></i>
-                                                    </div>
-                                                </div>
+                                                <h6 className="card-title text-warning">Upcoming Leaves (7 Days)</h6>
+                                                <h2 className="card-text">{leaveSummary.upcoming.length}</h2>
+                                                {leaveSummary.upcoming.length > 0 && (
+                                                    <small className="text-muted">
+                                                        {leaveSummary.upcoming.map(l => l.employee).join(', ')}
+                                                    </small>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="col-md-4">
+                                        <div className="card summary-card">
+                                            <div className="card-body">
+                                                <h6 className="card-title text-info">Total Leaves</h6>
+                                                <h2 className="card-text">{leaveSummary.all.length}</h2>
+                                                <small className="text-muted">All recorded leaves</small>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Leave Table */}
-                                <div className="d-flex justify-content-between align-items-center mb-3">
-                                    <h6>Leave Records</h6>
-                                    <div className="d-flex">
-                                        <input
-                                            type="text"
-                                            className="form-control form-control-sm me-2"
-                                            placeholder="Search leaves..."
-                                            value={leaveSearchTerm}
-                                            onChange={e => setLeaveSearchTerm(e.target.value)}
-                                            style={{width: '200px'}}
-                                        />
-                                        <button
-                                            className="btn btn-sm btn-outline-secondary"
-                                            onClick={() => document.getElementById('importLeaveFile').click()}
-                                        >
-                                            <i className="fas fa-upload me-1"></i>Import
-                                            <input
-                                                type="file"
-                                                id="importLeaveFile"
-                                                style={{display: 'none'}}
-                                                accept=".csv"
-                                                onChange={handleFileImport}
-                                            />
-                                        </button>
-                                    </div>
+                                {/* Leave Search and Table */}
+                                <div className="mb-3">
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        placeholder="Search leaves by employee name, login, type, or manager..."
+                                        value={leaveSearchTerm}
+                                        onChange={(e) => setLeaveSearchTerm(e.target.value)}
+                                    />
                                 </div>
 
-                                {filteredLeaves.length === 0 ? (
-                                    <div className="text-center py-4">
-                                        <div className="text-muted mb-3">
-                                            <i className="fas fa-calendar-times fa-2x"></i>
-                                        </div>
-                                        <p>No leave records found</p>
+                                <ul className="nav nav-tabs mb-3">
+                                    <li className="nav-item">
                                         <button
-                                            className="btn btn-sm btn-primary"
-                                            onClick={() => setShowLeaveForm(true)}
+                                            className={`nav-link ${activeTab === 'table' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('table')}
                                         >
-                                            <i className="fas fa-plus me-1"></i> Add First Leave
+                                            Table View
                                         </button>
-                                    </div>
-                                ) : (
+                                    </li>
+                                    <li className="nav-item">
+                                        <button
+                                            className={`nav-link ${activeTab === 'calendar' ? 'active' : ''}`}
+                                            onClick={() => setActiveTab('calendar')}
+                                        >
+                                            Calendar View (Coming Soon)
+                                        </button>
+                                    </li>
+                                </ul>
+
+                                {activeTab === 'table' && (
                                     <div className="table-responsive">
-                                        <table className="table table-hover">
+                                        <table className="table table-striped table-hover">
                                             <thead>
                                                 <tr>
                                                     <th>Employee</th>
                                                     <th>Type</th>
                                                     <th>From</th>
                                                     <th>To</th>
-                                                    <th>Duration</th>
-                                                    <th>Applied On</th>
+                                                    <th>Hours</th>
+                                                    <th>Applied At</th>
                                                     <th>Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {filteredLeaves.map(leave => {
-                                                    const fromDate = new Date(leave.from);
-                                                    const toDate = new Date(leave.to);
-                                                    const duration = Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
-
-                                                    return (
+                                                {filteredLeaves.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="7" className="text-center text-muted py-3">No leave records found.</td>
+                                                    </tr>
+                                                ) : (
+                                                    filteredLeaves.map(leave => (
                                                         <tr key={leave.id}>
                                                             <td>{leave.employee}</td>
-                                                            <td>
-                                                                <span className="badge bg-info">
-                                                                    {leave.type}
-                                                                </span>
-                                                            </td>
-                                                            <td>{leave.to}</td>
+                                                            <td><span className={`badge ${leave.type === 'Vacation' ? 'bg-primary' : leave.type === 'Sick' ? 'bg-danger' : 'bg-info'} leave-status-badge`}>{leave.type}</span></td>
                                                             <td>{leave.from}</td>
-                                                            <td>{duration} day(s)</td>
+                                                            <td>{leave.to}</td>
+                                                            <td>{leave.hours}</td>
                                                             <td>{leave.appliedAt}</td>
                                                             <td>
-                                                                <button
-                                                                    className="btn btn-sm btn-outline-danger"
-                                                                    onClick={() => deleteLeave(leave.id)}
-                                                                >
-                                                                    <i className="fas fa-trash-alt"></i>
+                                                                <button onClick={() => deleteLeave(leave.id)} className="btn btn-sm btn-outline-danger">
+                                                                    <i className="fas fa-trash-alt"></i> Delete
                                                                 </button>
                                                             </td>
                                                         </tr>
-                                                    );
-                                                })}
+                                                    ))
+                                                )}
                                             </tbody>
                                         </table>
+                                    </div>
+                                )}
+
+                                {activeTab === 'calendar' && (
+                                    <div className="text-center py-5 text-muted">
+                                        <i className="fas fa-calendar-days fa-3x mb-3"></i>
+                                        <h4>Calendar View Coming Soon!</h4>
+                                        <p>We're working to bring you an intuitive calendar to visualize leaves.</p>
                                     </div>
                                 )}
                             </div>
@@ -1893,92 +1637,57 @@
 
                     {/* Export Modal */}
                     {showExportModal && (
-                        <div className="modal-backdrop">
+                        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
                             <div className="modal-dialog modal-dialog-centered">
                                 <div className="modal-content">
                                     <div className="modal-header">
                                         <h5 className="modal-title">Export Leave Records</h5>
-                                        <button
-                                            className="btn-close"
-                                            onClick={() => setShowExportModal(false)}
-                                        ></button>
+                                        <button type="button" className="btn-close" onClick={() => setShowExportModal(false)}></button>
                                     </div>
                                     <div className="modal-body">
                                         <div className="mb-3">
-                                            <label className="form-label">Format</label>
-                                            <select
-                                                className="form-select"
-                                                value={exportFormat}
-                                                onChange={e => setExportFormat(e.target.value)}
-                                            >
+                                            <label className="form-label">Export Format</label>
+                                            <select className="form-select" value={exportFormat} onChange={(e) => setExportFormat(e.target.value)}>
                                                 <option value="csv">CSV</option>
                                                 <option value="json">JSON</option>
                                             </select>
                                         </div>
-
-                                        <div className="mb-3">
-                                            <label className="form-label">Date Range (Optional)</label>
-                                            <div className="row g-2">
-                                                <div className="col">
-                                                    <input
-                                                        type="date"
-                                                        className="form-control"
-                                                        placeholder="Start Date"
-                                                        value={exportDateRange.start}
-                                                        onChange={e => setExportDateRange({...exportDateRange, start: e.target.value})}
-                                                    />
-                                                </div>
-                                                <div className="col">
-                                                    <input
-                                                        type="date"
-                                                        className="form-control"
-                                                        placeholder="End Date"
-                                                        value={exportDateRange.end}
-                                                        onChange={e => setExportDateRange({...exportDateRange, end: e.target.value})}
-                                                    />
-                                                </div>
+                                        <div className="row g-3">
+                                            <div className="col-md-6">
+                                                <label className="form-label">Start Date (Optional)</label>
+                                                <input type="date" className="form-control" value={exportDateRange.start} onChange={(e) => setExportDateRange({...exportDateRange, start: e.target.value})} />
+                                            </div>
+                                            <div className="col-md-6">
+                                                <label className="form-label">End Date (Optional)</label>
+                                                <input type="date" className="form-control" value={exportDateRange.end} onChange={(e) => setExportDateRange({...exportDateRange, end: e.target.value})} />
                                             </div>
                                         </div>
+                                        <small className="form-text text-muted">
+                                            Leave dates blank to export all records.
+                                        </small>
                                     </div>
                                     <div className="modal-footer">
-                                        <button
-                                            className="btn btn-secondary"
-                                            onClick={() => setShowExportModal(false)}
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            className="btn btn-primary"
-                                            onClick={exportData}
-                                        >
-                                            Export Data
-                                        </button>
+                                        <button type="button" className="btn btn-secondary" onClick={() => setShowExportModal(false)}>Close</button>
+                                        <button type="button" className="btn btn-primary" onClick={exportData}>Export</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Import Modal */}
+                    {/* Import Confirm Modal */}
                     {showImportModal && (
-                        <div className="modal-backdrop">
-                            <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                            <div className="modal-dialog modal-dialog-centered modal-lg">
                                 <div className="modal-content">
                                     <div className="modal-header">
-                                        <h5 className="modal-title">Confirm Import</h5>
-                                        <button
-                                            className="btn-close"
-                                            onClick={() => setShowImportModal(false)}
-                                        ></button>
+                                        <h5 className="modal-title">Confirm Import Leave Records ({importedLeaveData.length})</h5>
+                                        <button type="button" className="btn-close" onClick={() => setShowImportModal(false)}></button>
                                     </div>
-                                    <div className="modal-body">
-                                        <p>
-                                            You are about to import <strong>{importedLeaveData.length}</strong> leave records.
-                                            Please review the first few records:
-                                        </p>
-
+                                    <div className="modal-body import-export-modal">
+                                        <p className="text-muted">Review the records to be imported:</p>
                                         <div className="table-responsive">
-                                            <table className="table table-sm">
+                                            <table className="table table-bordered table-striped">
                                                 <thead>
                                                     <tr>
                                                         <th>Employee</th>
@@ -1989,13 +1698,13 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {importedLeaveData.slice(0, 5).map((record, index) => (
+                                                    {importedLeaveData.map((leave, index) => (
                                                         <tr key={index}>
-                                                            <td>{record.employee}</td>
-                                                            <td>{record.type}</td>
-                                                            <td>{record.from}</td>
-                                                            <td>{record.to}</td>
-                                                            <td>{record.hours}</td>
+                                                            <td>{leave.employee}</td>
+                                                            <td>{leave.type}</td>
+                                                            <td>{leave.from}</td>
+                                                            <td>{leave.to}</td>
+                                                            <td>{leave.hours}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -2003,17 +1712,75 @@
                                         </div>
                                     </div>
                                     <div className="modal-footer">
+                                        <button type="button" className="btn btn-secondary" onClick={() => setShowImportModal(false)}>Cancel</button>
+                                        <button type="button" className="btn btn-primary" onClick={confirmImport}>Confirm Import</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Edit Member Modal */}
+                    {showEditMemberModal && memberToEdit && (
+                        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                            <div className="modal-dialog modal-dialog-centered">
+                                <div className="modal-content">
+                                    <div className="modal-header">
+                                        <h5 className="modal-title">Edit Team Member</h5>
+                                        <button type="button" className="btn-close" onClick={() => { setShowEditMemberModal(false); setMemberToEdit(null); setFormErrors({}); }}></button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <div className="mb-3">
+                                            <label className="form-label">Name <span className="text-danger">*</span></label>
+                                            <input type="text" className={`form-control ${formErrors.name ? 'is-invalid' : ''}`} value={memberToEdit.name} onChange={(e) => setMemberToEdit({...memberToEdit, name: e.target.value})} />
+                                            {formErrors.name && <div className="invalid-feedback">{formErrors.name}</div>}
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label">Login ID <span className="text-danger">*</span></label>
+                                            <input type="text" className={`form-control ${formErrors.login ? 'is-invalid' : ''}`} value={memberToEdit.login} onChange={(e) => setMemberToEdit({...memberToEdit, login: e.target.value})} />
+                                            {formErrors.login && <div className="invalid-feedback">{formErrors.login}</div>}
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label">Level <span className="text-danger">*</span></label>
+                                            <select className={`form-select ${formErrors.level ? 'is-invalid' : ''}`} value={memberToEdit.level} onChange={(e) => setMemberToEdit({...memberToEdit, level: e.target.value})}>
+                                                <option value="">Select Level</option>
+                                                <option value="L8">L8</option>
+                                                <option value="L7">L7</option>
+                                                <option value="L6">L6</option>
+                                                <option value="L5">L5</option>
+                                                <option value="L4">L4</option>
+                                                <option value="L3">L3</option>
+                                                <option value="L2">L2</option>
+                                                <option value="L1">L1</option>
+                                            </select>
+                                            {formErrors.level && <div className="invalid-feedback">{formErrors.level}</div>}
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label">Work Group</label>
+                                            <input type="text" className="form-control" value={memberToEdit.workGroup} onChange={(e) => setMemberToEdit({...memberToEdit, workGroup: e.target.value})} />
+                                        </div>
+                                        <div className="mb-3">
+                                            <label className="form-label">Manager Login ID</label>
+                                            <input type="text" className="form-control" value={memberToEdit.manager} onChange={(e) => setMemberToEdit({...memberToEdit, manager: e.target.value})} />
+                                            <small className="form-text text-muted">Leave empty for top-level members.</small>
+                                        </div>
+                                    </div>
+                                    <div className="modal-footer">
                                         <button
                                             className="btn btn-secondary"
-                                            onClick={() => setShowImportModal(false)}
+                                            onClick={() => {
+                                                setShowEditMemberModal(false);
+                                                setMemberToEdit(null);
+                                                setFormErrors({});
+                                            }}
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             className="btn btn-primary"
-                                            onClick={confirmImport}
+                                            onClick={handleUpdateMember}
                                         >
-                                            Confirm Import
+                                            Save Changes
                                         </button>
                                     </div>
                                 </div>
@@ -2021,37 +1788,30 @@
                         </div>
                     )}
 
-                    {/* Team Import Modal */}
+                    {/* Team Import Confirm Modal */}
                     {showTeamImportModal && (
-                        <div className="modal-backdrop">
-                            <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                            <div className="modal-dialog modal-dialog-centered modal-lg">
                                 <div className="modal-content">
                                     <div className="modal-header">
-                                        <h5 className="modal-title">Confirm Team Import</h5>
-                                        <button
-                                            className="btn-close"
-                                            onClick={() => setShowTeamImportModal(false)}
-                                        ></button>
+                                        <h5 className="modal-title">Confirm Import Team Members ({importedTeamData.length})</h5>
+                                        <button type="button" className="btn-close" onClick={() => setShowTeamImportModal(false)}></button>
                                     </div>
-                                    <div className="modal-body">
-                                        <p>
-                                            You are about to import <strong>{importedTeamData.length}</strong> team members.
-                                            Please review the first few members:
-                                        </p>
-
+                                    <div className="modal-body import-export-modal">
+                                        <p className="text-muted">Review the team members to be imported/updated:</p>
                                         <div className="table-responsive">
-                                            <table className="table table-sm">
+                                            <table className="table table-bordered table-striped">
                                                 <thead>
                                                     <tr>
                                                         <th>Name</th>
                                                         <th>Login</th>
                                                         <th>Level</th>
-                                                        <th>WorkGroup</th>
+                                                        <th>Work Group</th>
                                                         <th>Manager</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {importedTeamData.slice(0, 5).map((member, index) => (
+                                                    {importedTeamData.map((member, index) => (
                                                         <tr key={index}>
                                                             <td>{member.name}</td>
                                                             <td>{member.login}</td>
@@ -2082,114 +1842,6 @@
                             </div>
                         </div>
                     )}
-
-                    {/* Edit Member Modal */}
-                    {showEditMemberModal && memberToEdit && (
-                        <div className="modal-backdrop">
-                            <div className="modal-dialog modal-dialog-centered">
-                                <div className="modal-content">
-                                    <div className="modal-header">
-                                        <h5 className="modal-title">Edit Team Member</h5>
-                                        <button
-                                            className="btn-close"
-                                            onClick={() => {
-                                                setShowEditMemberModal(false);
-                                                setMemberToEdit(null);
-                                                setFormErrors({});
-                                            }}
-                                        ></button>
-                                    </div>
-                                    <div className="modal-body">
-                                        <div className="row g-3">
-                                            <div className="col-md-6">
-                                                <label className="form-label">Full Name *</label>
-                                                <input
-                                                    type="text"
-                                                    className={`form-control ${formErrors.name ? 'is-invalid' : ''}`}
-                                                    placeholder="Enter full name"
-                                                    value={memberToEdit.name}
-                                                    onChange={e => setMemberToEdit({...memberToEdit, name: e.target.value})}
-                                                />
-                                                {formErrors.name && <div className="form-error">{formErrors.name}</div>}
-                                            </div>
-
-                                            <div className="col-md-6">
-                                                <label className="form-label">Login ID *</label>
-                                                <input
-                                                    type="text"
-                                                    className={`form-control ${formErrors.login ? 'is-invalid' : ''}`}
-                                                    placeholder="email@company.com"
-                                                    value={memberToEdit.login}
-                                                    onChange={e => setMemberToEdit({...memberToEdit, login: e.target.value})}
-                                                />
-                                                {formErrors.login && <div className="form-error">{formErrors.login}</div>}
-                                            </div>
-
-                                            <div className="col-md-6">
-                                                <label className="form-label">Level *</label>
-                                                <select
-                                                    className={`form-select ${formErrors.level ? 'is-invalid' : ''}`}
-                                                    value={memberToEdit.level}
-                                                    onChange={e => setMemberToEdit({...memberToEdit, level: e.target.value})}
-                                                >
-                                                    <option value="">Select Level</option>
-                                                    <option value="L8">L8</option>
-                                                    <option value="L7">L7</option>
-                                                    <option value="L6">L6</option>
-                                                    <option value="L5">L5</option>
-                                                    <option value="L4">L4</option>
-                                                </select>
-                                                {formErrors.level && <div className="form-error">{formErrors.level}</div>}
-                                            </div>
-
-                                            <div className="col-md-6">
-                                                <label className="form-label">Work Group</label>
-                                                <input
-                                                    type="text"
-                                                    className="form-control"
-                                                    placeholder="Risk specialist, QA.."
-                                                    value={memberToEdit.workGroup}
-                                                    onChange={e => setMemberToEdit({...memberToEdit, workGroup: e.target.value})}
-                                                />
-                                            </div>
-
-                                            <div className="col-md-12">
-                                                <label className="form-label">Manager Login ID</label>
-                                                <input
-                                                    type="text"
-                                                    className="form-control"
-                                                    placeholder="login.."
-                                                    value={memberToEdit.manager}
-                                                    onChange={e => setMemberToEdit({...memberToEdit, manager: e.target.value})}
-                                                />
-                                                <small className="text-muted">
-                                                    Enter manager's login ID. If manager doesn't exist in team, a placeholder will be created.
-                                                </small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="modal-footer">
-                                        <button
-                                            className="btn btn-secondary"
-                                            onClick={() => {
-                                                setShowEditMemberModal(false);
-                                                setMemberToEdit(null);
-                                                setFormErrors({});
-                                            }}
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            className="btn btn-primary"
-                                            onClick={handleUpdateMember}
-                                        >
-                                            Save Changes
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
             );
         };
@@ -2198,3 +1850,4 @@
     </script>
 </body>
 </html>
+```
