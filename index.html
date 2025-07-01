@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enterprise Leave Management System</title>
+    <title>Leave Management System</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -1250,11 +1250,11 @@
                                             <div className="row g-3 mb-4">
                                                 <div className="col-md-6">
                                                     <label className="form-label fw-bold">Team Name *</label>
-                                                    <input type="text" className="form-control" placeholder="e.g., Engineering Team" value={newTeam.name} onChange={(e) => setNewTeam({...newTeam, name: e.target.value})} />
+                                                    <input type="text" className="form-control" placeholder="e.g.,Team Name" value={newTeam.name} onChange={(e) => setNewTeam({...newTeam, name: e.target.value})} />
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label fw-bold">Dashboard Title *</label>
-                                                    <input type="text" className="form-control" value={newTeam.title} onChange={(e) => setNewTeam({...newTeam, title: e.target.value})} placeholder="e.g., Engineering Dashboard" />
+                                                    <input type="text" className="form-control" value={newTeam.title} onChange={(e) => setNewTeam({...newTeam, title: e.target.value})} placeholder="e.g., ARM" />
                                                 </div>
                                             </div>
                                             <div className="mb-4">
