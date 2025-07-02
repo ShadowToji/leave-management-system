@@ -214,7 +214,7 @@
         const { useState, useEffect, useRef } = React;
 
         // Recursive component for hierarchy tree
-        const HierarchyTree = ({ members, onDelete, onEdit, isEditMode }) => {
+        const HierarchyTree = ({ members, onDelete, onEdit, isEditMode, membersOnLeaveToday }) => {
             const [expandedNodes, setExpandedNodes] = useState({});
             const initialized = useRef(false);
 
@@ -260,12 +260,13 @@
                 const isExpanded = expandedNodes[node.id];
                 const hasChildren = node.children && node.children.length > 0;
                 const displayLevel = getDisplayLevel(node);
+                const isOnLeave = membersOnLeaveToday.has(node.name);
 
                 return (
                     <div key={node.id} className="mb-2">
                         <div className={`tree-node level-${displayLevel} ${node.isPlaceholder ? 'placeholder-member' : ''}`}>
                             <div className="d-flex justify-content-between align-items-center">
-                                <div className="d-flex align-items-center">
+                                <div className="d-flex align-items-center flex-grow-1 me-2">
                                     {hasChildren ? (
                                         <span
                                             className="tree-toggle"
@@ -276,46 +277,51 @@
                                     ) : (
                                         <span className="tree-toggle" style={{ visibility: 'hidden' }}>•</span>
                                     )}
-                                    <div className="d-flex align-items-center">
-                                        <div
-                                            className="hierarchy-icon"
-                                            style={{
-                                                backgroundColor: `var(--level-${displayLevel})`,
-                                                color: 'white'
-                                            }}
-                                        >
-                                            {node.isPlaceholder ? '?' :
-                                             displayLevel === 'l4' ? 'M' :
-                                             displayLevel === 'l4-ic' ? 'IC' :
-                                             node.level.charAt(1)}
+                                    <div
+                                        className="hierarchy-icon"
+                                        style={{
+                                            backgroundColor: `var(--level-${displayLevel})`,
+                                            color: 'white'
+                                        }}
+                                    >
+                                        {node.isPlaceholder ? '?' :
+                                         displayLevel === 'l4' ? 'M' :
+                                         displayLevel === 'l4-ic' ? 'IC' :
+                                         node.level.charAt(1)}
+                                    </div>
+                                    <div className="flex-grow-1">
+                                        <div className="fw-bold">
+                                            {node.name}
+                                            {node.isPlaceholder && <span className="badge bg-warning ms-2">Placeholder</span>}
                                         </div>
-                                        <div>
-                                            <div className="fw-bold">
-                                                {node.name}
-                                                {node.isPlaceholder && <span className="badge bg-warning ms-2">Placeholder</span>}
-                                            </div>
-                                            <div className="small text-muted">
-                                                {node.login} | {node.isPlaceholder ? 'TBD' :
-                                                 (displayLevel === 'l4' ? 'L4 Manager' :
-                                                  displayLevel === 'l4-ic' ? 'L4 IC' : node.level)}
-                                            </div>
+                                        <div className="small text-muted">
+                                            {node.login} | {node.isPlaceholder ? 'TBD' :
+                                             (displayLevel === 'l4' ? 'L4 Manager' :
+                                              displayLevel === 'l4-ic' ? 'L4 IC' : node.level)}
                                         </div>
                                     </div>
+                                    {!node.isPlaceholder && (
+                                        <span className="ms-auto" title={isOnLeave ? 'On Leave' : 'Active'}>
+                                            <i className={`fas fa-circle fa-xs text-${isOnLeave ? 'danger' : 'success'}`}></i>
+                                        </span>
+                                    )}
                                 </div>
                                 {isEditMode && (
-                                    <div>
+                                    <div className="flex-shrink-0">
                                         <button
                                             className="btn btn-sm btn-outline-info me-2"
                                             onClick={() => onEdit(node)}
                                         >
                                             <i className="fas fa-edit"></i>
                                         </button>
-                                        <button
-                                            className="btn btn-sm btn-outline-danger"
-                                            onClick={() => onDelete(node.id)}
-                                        >
-                                            <i className="fas fa-trash-alt"></i>
-                                        </button>
+                                        {!node.isPlaceholder && (
+                                            <button
+                                                className="btn btn-sm btn-outline-danger"
+                                                onClick={() => onDelete(node.id)}
+                                            >
+                                                <i className="fas fa-trash-alt"></i>
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -420,6 +426,11 @@
             const [showEditMemberModal, setShowEditMemberModal] = useState(false);
             const [memberToEdit, setMemberToEdit] = useState(null);
 
+            // New states for deletion confirmation
+            const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+            const [memberToDelete, setMemberToDelete] = useState(null);
+
+
             // Navigation functions
             const navigateTo = (view) => {
                 setViewHistory(prev => [...prev, currentView]);
@@ -467,6 +478,18 @@
             // Utility Functions
             const getCurrentTeamData = () => allTeamsData[selectedTeamName] || [];
             const getCurrentLeaveRecords = () => allLeaveRecords[selectedTeamName] || [];
+
+            const formatDateForDisplay = (dateString) => {
+                if (!dateString) return '';
+                const date = new Date(dateString + 'T00:00:00'); // Use T00:00:00 to avoid timezone issues
+                const currentYear = new Date().getFullYear();
+                
+                if (date.getFullYear() === currentYear) {
+                    return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).replace(' ', '-');
+                } else {
+                    return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                }
+            };
 
             const createPlaceholderManager = (managerLogin, teamData) => {
                 // Check if manager already exists
@@ -702,44 +725,51 @@
             };
 
 
-            const deleteMember = (memberId) => {
-                if (!window.confirm('Delete this team member? This will also remove their direct reports and all associated leave records.')) {
-                    return;
+            const handleDeleteClick = (memberId) => {
+                const member = getCurrentTeamData().find(m => m.id === memberId);
+                if (member) {
+                    setMemberToDelete(member);
+                    setShowDeleteConfirmModal(true);
                 }
+            };
 
-                let teamData = getCurrentTeamData();
-                const memberToDelete = teamData.find(m => m.id === memberId);
+            const confirmDeleteMember = () => {
                 if (!memberToDelete) return;
 
-                const loginsToRemove = new Set([memberToDelete.login]);
+                let teamData = getCurrentTeamData();
+                const loginsToRemove = new Set();
+                const initialLogin = memberToDelete.login;
+                
+                loginsToRemove.add(initialLogin);
+                
                 let changed = true;
-                while(changed) {
+                while (changed) {
                     changed = false;
-                    const initialSize = loginsToRemove.size;
+                    const beforeSize = loginsToRemove.size;
                     teamData.forEach(m => {
                         if (m.manager && loginsToRemove.has(m.manager)) {
                             loginsToRemove.add(m.login);
                         }
                     });
-                    if (loginsToRemove.size > initialSize) changed = true;
+                    if (loginsToRemove.size > beforeSize) {
+                        changed = true;
+                    }
                 }
-
+                
                 const updatedMembers = teamData.filter(m => !loginsToRemove.has(m.login));
                 
-                // Remove associated leave records
-                const updatedLeaveRecords = getCurrentLeaveRecords().filter(
-                    leave => !loginsToRemove.has(teamMembers.find(m => m.name === leave.employee)?.login)
-                );
-
-                setAllTeamsData({
-                    ...allTeamsData,
-                    [selectedTeamName]: updatedMembers
+                const membersBeforeDelete = [...teamMembers];
+                const updatedLeaveRecords = getCurrentLeaveRecords().filter(leave => {
+                    const employeeLogin = membersBeforeDelete.find(m => m.name === leave.employee)?.login;
+                    return employeeLogin && !loginsToRemove.has(employeeLogin);
                 });
 
-                setAllLeaveRecords({
-                    ...allLeaveRecords,
-                    [selectedTeamName]: updatedLeaveRecords
-                });
+                setAllTeamsData({ ...allTeamsData, [selectedTeamName]: updatedMembers });
+                setAllLeaveRecords({ ...allLeaveRecords, [selectedTeamName]: updatedLeaveRecords });
+
+                // Close modal and reset state
+                setShowDeleteConfirmModal(false);
+                setMemberToDelete(null);
             };
 
             // Leave Management
@@ -1145,12 +1175,36 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             };
+            
+            // Helper to get all reports under a manager recursively
+            const getReportingChain = (managerLogin) => {
+                const teamData = getCurrentTeamData();
+                const chain = new Set();
+                
+                let toProcess = [managerLogin];
+                
+                while (toProcess.length > 0) {
+                    const currentLogin = toProcess.pop();
+                    const directReports = teamData.filter(m => m.manager === currentLogin);
+                    directReports.forEach(report => {
+                        if (!chain.has(report.login)) {
+                            chain.add(report.login);
+                            toProcess.push(report.login);
+                        }
+                    });
+                }
+                return teamData.filter(m => chain.has(m.login));
+            };
+
 
             // UI Components
             const teamMetadata = teamsMetadata[selectedTeamName] || {};
             const teamMembers = getCurrentTeamData();
             const filteredLeaves = getFilteredLeaves();
             const summaryStats = calculateLeaveSummaryStatistics(teamMembers, getCurrentLeaveRecords()); // Use the new summary function
+            const reportsOfMemberToDelete = memberToDelete ? getReportingChain(memberToDelete.login) : [];
+            
+            const membersOnLeaveToday = new Set(summaryStats.current.map(l => l.employee));
 
             // View Rendering
             if (currentView === 'welcome') {
@@ -1403,7 +1457,7 @@
                                 </div>
                             )}
                             <div className="card-body">
-                                <HierarchyTree members={teamMembers} onDelete={deleteMember} onEdit={handleEditClick} isEditMode={isEditMode} />
+                                <HierarchyTree members={teamMembers} onDelete={handleDeleteClick} onEdit={handleEditClick} isEditMode={isEditMode} membersOnLeaveToday={membersOnLeaveToday} />
                             </div>
                         </div>
 
@@ -1576,10 +1630,10 @@
                                                     <tr key={leave.id}>
                                                         <td>{leave.employee}</td>
                                                         <td><span className={`badge bg-${leave.type === 'Vacation' ? 'info' : leave.type === 'Sick' ? 'warning' : 'secondary'}`}>{leave.type}</span></td>
-                                                        <td>{leave.from}</td>
-                                                        <td>{leave.to}</td>
+                                                        <td>{formatDateForDisplay(leave.from)}</td>
+                                                        <td>{formatDateForDisplay(leave.to)}</td>
                                                         <td>{leave.hours < 8 ? `${leave.hours} hrs` : ''}</td>
-                                                        <td>{leave.appliedAt}</td>
+                                                        <td>{formatDateForDisplay(leave.appliedAt)}</td>
                                                         <td>
                                                             <button className="btn btn-sm btn-outline-danger" onClick={() => deleteLeave(leave.id)}>
                                                                 <i className="fas fa-trash-alt"></i>
@@ -1614,7 +1668,7 @@
                                                         <div className="fw-bold">{leave.employee} <span className="badge bg-danger float-end">{leave.type}</span></div>
                                                         <div className="small text-muted">{leave.employeeLogin}</div>
                                                         <div className="small">Manager: {leave.managerLogin}</div>
-                                                        <div className="small text-primary">{leave.from} to {leave.to}</div>
+                                                        <div className="small text-primary">{formatDateForDisplay(leave.from)} to {formatDateForDisplay(leave.to)}</div>
                                                     </li>
                                                 ))}
                                             </ul>
@@ -1637,7 +1691,7 @@
                                                          <div className="fw-bold">{leave.employee} <span className="badge bg-warning text-dark float-end">{leave.type}</span></div>
                                                          <div className="small text-muted">{leave.employeeLogin}</div>
                                                          <div className="small">Manager: {leave.managerLogin}</div>
-                                                         <div className="small text-primary">{leave.from} to {leave.to}</div>
+                                                         <div className="small text-primary">{formatDateForDisplay(leave.from)} to {formatDateForDisplay(leave.to)}</div>
                                                     </li>
                                                 ))}
                                             </ul>
@@ -1648,28 +1702,47 @@
                                 </div>
                             </div>
                             <div className="col-lg-4 mb-4">
-                                <div className="card summary-card">
-                                    <div className="card-body">
-                                        <h6 className="card-title">
-                                            <i className="fas fa-chart-pie me-2"></i> Leave Type Summary
-                                        </h6>
-                                        {Object.keys(summaryStats.byType).length > 0 ? (
-                                            Object.entries(summaryStats.byType).map(([type, data]) => (
-                                                <div key={type} className="d-flex justify-content-between align-items-center mb-1 p-2 bg-light rounded">
-                                                    <span>{type}</span>
-                                                    <span className="badge bg-success rounded-pill">
-                                                        {data.totalDays} days ({data.count} leaves)
-                                                    </span>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="card-text text-muted">No leave data yet.</p>
-                                        )}
+                                <div className="card">
+                                    <div className="card-body text-center d-flex flex-column justify-content-center align-items-center h-100">
+                                         <i className="fas fa-chart-line fa-2x text-muted mb-3"></i>
+                                        <h6 className="card-title">Team LEVEL shrinkage coming soon.</h6>
+                                        <p className="card-text text-muted small">This feature is under development.</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    {/* Delete Confirmation Modal */}
+                    {showDeleteConfirmModal && memberToDelete && (
+                        <div className="modal show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
+                            <div className="modal-dialog modal-dialog-centered">
+                                <div className="modal-content">
+                                    <div className="modal-header">
+                                        <h5 className="modal-title text-danger"><i className="fas fa-exclamation-triangle me-2"></i>Confirm Deletion</h5>
+                                        <button type="button" className="btn-close" onClick={() => setShowDeleteConfirmModal(false)}></button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <p>You are about to delete <strong>{memberToDelete.name}</strong> ({memberToDelete.login}).</p>
+                                        {reportsOfMemberToDelete.length > 0 ? (
+                                            <div className="alert alert-danger">
+                                                <strong>Warning!</strong> This team member is a manager with <strong>{reportsOfMemberToDelete.length} direct report(s)</strong>.
+                                                <br/>
+                                                Deleting them will also <strong>permanently delete their entire reporting chain</strong>. This action cannot be undone.
+                                            </div>
+                                        ) : (
+                                            <p>This action cannot be undone.</p>
+                                        )}
+                                         Are you sure you want to proceed?
+                                    </div>
+                                    <div className="modal-footer">
+                                        <button className="btn btn-secondary" onClick={() => { setShowDeleteConfirmModal(false); setMemberToDelete(null); }}>Cancel</button>
+                                        <button className="btn btn-danger" onClick={confirmDeleteMember}>Yes, Delete</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Export Modal */}
                     {showExportModal && (
