@@ -253,7 +253,10 @@
             const getDisplayLevel = (member) => {
                 if (member.isPlaceholder) return 'placeholder';
                 const hasReports = members.some(m => m.manager === member.login && !m.isPlaceholder);
-                return hasReports && member.level === 'L4' ? 'l4' : member.level.toLowerCase().replace(' ', '-');
+                if (member.level === 'L4') {
+                    return hasReports ? 'l4' : 'l4-ic';
+                }
+                return member.level.toLowerCase().replace(' ', '-');
             };
 
             const renderNode = (node) => {
@@ -359,93 +362,35 @@
             const [viewHistory, setViewHistory] = useState(['welcome']);
 
             // State Management
-            const [currentView, setCurrentView] = useState('welcome'); // Changed to always start at 'welcome'
+            const [currentView, setCurrentView] = useState('welcome');
+            const [userTeams, setUserTeams] = useState(() => JSON.parse(localStorage.getItem('userTeams')) || []);
+            const [selectedTeamName, setSelectedTeamName] = useState(() => localStorage.getItem('selectedTeamName') || '');
+            const [teamsMetadata, setTeamsMetadata] = useState(() => JSON.parse(localStorage.getItem('teamsMetadata')) || {});
+            const [allTeamsData, setAllTeamsData] = useState(() => JSON.parse(localStorage.getItem('allTeamsData')) || {});
+            const [allLeaveRecords, setAllLeaveRecords] = useState(() => JSON.parse(localStorage.getItem('allLeaveRecords')) || {});
+            
+            const [history, setHistory] = useState([]);
 
-            const [userTeams, setUserTeams] = useState(() => {
-                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
-                return saved.userTeams || [];
-            });
-
-            const [selectedTeamName, setSelectedTeamName] = useState(() => {
-                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
-                return saved.selectedTeamName || '';
-            });
-
-            const [newTeam, setNewTeam] = useState({
-                name: '',
-                title: '',
-                description: ''
-            });
-
-            const [teamsMetadata, setTeamsMetadata] = useState(() => {
-                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
-                return saved.teamsMetadata || {};
-            });
-
-            const [allTeamsData, setAllTeamsData] = useState(() => {
-                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
-                return saved.allTeamsData || {};
-            });
-
-            const [allLeaveRecords, setAllLeaveRecords] = useState(() => {
-                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
-                return saved.allLeaveRecords || {};
-            });
-
-            const [newMember, setNewMember] = useState({
-                name: '', level: '', workGroup: '', manager: '', login: ''
-            });
-
+            const [newTeam, setNewTeam] = useState({ name: '', title: '', description: '' });
+            const [newMember, setNewMember] = useState({ name: '', level: '', workGroup: '', manager: '', login: '' });
             const [showAddForm, setShowAddForm] = useState(false);
             const [isEditMode, setIsEditMode] = useState(false);
             const [leaveSearchTerm, setLeaveSearchTerm] = useState('');
-            const [currentUser] = useState('Owned by :Faraz');
+            const [currentUser] = useState({ name: 'Faraz Pasha S', login: 'frzs' });
             const [showLeaveForm, setShowLeaveForm] = useState(false);
             const [showExportModal, setShowExportModal] = useState(false);
             const [showImportModal, setShowImportModal] = useState(false);
             const [formErrors, setFormErrors] = useState({});
-            const [newLeave, setNewLeave] = useState({
-                employee: '',
-                type: 'Vacation',
-                from: '',
-                to: '',
-                hours: 8,
-                isSingleDay: false
-            });
+            const [newLeave, setNewLeave] = useState({ employee: '', type: 'Vacation', from: '', to: '', hours: 8, isSingleDay: false });
             const [importedLeaveData, setImportedLeaveData] = useState([]);
             const [exportFormat, setExportFormat] = useState('csv');
-            const [exportDateRange, setExportDateRange] = useState({
-                start: '',
-                end: ''
-            });
+            const [exportDateRange, setExportDateRange] = useState({ start: '', end: '' });
             const [showTeamImportModal, setShowTeamImportModal] = useState(false);
             const [importedTeamData, setImportedTeamData] = useState([]);
-            const [activeTab, setActiveTab] = useState('table');
-
-            // New states for editing members
             const [showEditMemberModal, setShowEditMemberModal] = useState(false);
             const [memberToEdit, setMemberToEdit] = useState(null);
-
-            // New states for deletion confirmation
             const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
             const [memberToDelete, setMemberToDelete] = useState(null);
-
-
-            // Navigation functions
-            const navigateTo = (view) => {
-                setViewHistory(prev => [...prev, currentView]);
-                setCurrentView(view);
-            };
-
-            const navigateBack = () => {
-                if (viewHistory.length > 1) {
-                    const prevView = viewHistory[viewHistory.length - 1];
-                    setViewHistory(prev => prev.slice(0, -1));
-                    setCurrentView(prevView);
-                } else {
-                    setCurrentView('welcome');
-                }
-            };
 
             // Persistence Functions
             const saveToLocalStorage = () => {
@@ -461,19 +406,32 @@
             };
 
             useEffect(() => {
-                // Load other states from localStorage if available, but currentView always starts at 'welcome'
-                const saved = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
-                if (saved.userTeams) setUserTeams(saved.userTeams);
-                if (saved.selectedTeamName) setSelectedTeamName(saved.selectedTeamName);
-                if (saved.teamsMetadata) setTeamsMetadata(saved.teamsMetadata);
-                if (saved.allTeamsData) setAllTeamsData(saved.allTeamsData);
-                if (saved.allLeaveRecords) setAllLeaveRecords(saved.allLeaveRecords);
-            }, []); // Run only once on mount to load initial data
+                const savedState = JSON.parse(localStorage.getItem('leaveManagementState') || '{}');
+                if (savedState.userTeams) setUserTeams(savedState.userTeams);
+                if (savedState.selectedTeamName) setSelectedTeamName(savedState.selectedTeamName);
+                if (savedState.teamsMetadata) setTeamsMetadata(savedState.teamsMetadata);
+                if (savedState.allTeamsData) setAllTeamsData(savedState.allTeamsData);
+                if (savedState.allLeaveRecords) setAllLeaveRecords(savedState.allLeaveRecords);
+            }, []);
 
             useEffect(() => {
-                // Save all relevant states to localStorage whenever they change
                 saveToLocalStorage();
             }, [currentView, userTeams, selectedTeamName, teamsMetadata, allTeamsData, allLeaveRecords]);
+
+            // Undo Functionality
+            const saveStateToHistory = () => {
+                setHistory(prevHistory => [...prevHistory, { allTeamsData, allLeaveRecords }]);
+            };
+
+            const handleUndo = () => {
+                if (history.length === 0) return;
+
+                const lastState = history[history.length - 1];
+                setAllTeamsData(lastState.allTeamsData);
+                setAllLeaveRecords(lastState.allLeaveRecords);
+
+                setHistory(prevHistory => prevHistory.slice(0, -1));
+            };
 
             // Utility Functions
             const getCurrentTeamData = () => allTeamsData[selectedTeamName] || [];
@@ -481,7 +439,7 @@
 
             const formatDateForDisplay = (dateString) => {
                 if (!dateString) return '';
-                const date = new Date(dateString + 'T00:00:00'); // Use T00:00:00 to avoid timezone issues
+                const date = new Date(dateString + 'T00:00:00');
                 const currentYear = new Date().getFullYear();
                 
                 if (date.getFullYear() === currentYear) {
@@ -492,11 +450,9 @@
             };
 
             const createPlaceholderManager = (managerLogin, teamData) => {
-                // Check if manager already exists
                 const existingManager = teamData.find(m => m.login === managerLogin);
                 if (existingManager) return teamData;
 
-                // Create placeholder
                 const placeholder = {
                     id: Date.now() + Math.random(),
                     name: `Manager (${managerLogin})`,
@@ -507,17 +463,7 @@
                     isPlaceholder: true,
                     weeklyOffs: [6]
                 };
-
                 return [...teamData, placeholder];
-            };
-
-            const determineActualLevel = (member, teamData) => {
-                const hasReports = teamData.some(m => m.manager === member.login && !m.isPlaceholder);
-
-                if (member.level === 'L4') {
-                    return hasReports ? 'L4' : 'L4 IC';
-                }
-                return member.level;
             };
 
             const getFilteredLeaves = () => {
@@ -528,12 +474,9 @@
                 return leaves.filter(leave => {
                     const employeeMatch = leave.employee.toLowerCase().includes(searchLower);
                     const typeMatch = leave.type.toLowerCase().includes(searchLower);
-
                     const employee = getCurrentTeamData().find(m => m.name === leave.employee);
                     if (!employee) return employeeMatch || typeMatch;
-
                     const loginMatch = employee.login.toLowerCase().includes(searchLower);
-
                     let managerMatch = false;
                     if (employee.manager) {
                         const manager = getCurrentTeamData().find(m => m.login === employee.manager);
@@ -541,7 +484,6 @@
                             managerMatch = manager.name.toLowerCase().includes(searchLower);
                         }
                     }
-
                     return employeeMatch || typeMatch || loginMatch || managerMatch;
                 });
             };
@@ -552,13 +494,13 @@
 
                 if (!memberData.name) errors.name = 'Name is required';
                 if (!memberData.login) errors.login = 'Login ID is required';
-                if (!memberData.level) errors.level = 'Level is required';
+                if (!memberData.level || memberData.level === 'TBD') errors.level = 'Level is required';
 
                 const loginLower = memberData.login.toLowerCase();
                 const loginExists = teamData.some(m =>
-                    m.login.toLowerCase() === loginLower && (!isEdit || m.id !== memberData.id)
+                    !m.isPlaceholder && m.login.toLowerCase() === loginLower && (!isEdit || m.id !== memberData.id)
                 );
-                if (loginExists) errors.login = 'Login ID must be unique';
+                if (loginExists) errors.login = 'Login ID must be unique among active members.';
 
                 return errors;
             };
@@ -569,143 +511,95 @@
                     alert('Please fill in Team Name and Team Title');
                     return;
                 }
-
                 if (userTeams.includes(newTeam.name)) {
                     alert('Team name already exists. Please choose a different name.');
                     return;
                 }
-
+                saveStateToHistory();
                 const updatedUserTeams = [...userTeams, newTeam.name];
                 setUserTeams(updatedUserTeams);
                 setSelectedTeamName(newTeam.name);
-
-                const newMetadata = {...teamsMetadata, [newTeam.name]: {
-                    title: newTeam.title,
-                    description: newTeam.description
-                }};
-                setTeamsMetadata(newMetadata);
-
-                const updatedTeamsData = {...allTeamsData, [newTeam.name]: []};
-                setAllTeamsData(updatedTeamsData);
-
-                const updatedLeaveRecords = {...allLeaveRecords, [newTeam.name]: []};
-                setAllLeaveRecords(updatedLeaveRecords);
-
-                navigateTo('teamDashboard');
+                setTeamsMetadata({ ...teamsMetadata, [newTeam.name]: { title: newTeam.title, description: newTeam.description } });
+                setAllTeamsData({ ...allTeamsData, [newTeam.name]: [] });
+                setAllLeaveRecords({ ...allLeaveRecords, [newTeam.name]: [] });
+                setCurrentView('teamDashboard');
                 setNewTeam({ name: '', title: '', description: '' });
             };
 
             const deleteTeam = (teamName) => {
-                const teamData = allTeamsData[teamName] || [];
-                const leaveRecords = allLeaveRecords[teamName] || [];
-
-                let confirmMessage = `Delete team "${teamName}"?`;
-                if (teamData.length > 0) {
-                    confirmMessage += ` This will permanently remove ${teamData.length} team members`;
-                }
-                if (leaveRecords.length > 0) {
-                    confirmMessage += ` and ${leaveRecords.length} leave records`;
-                }
-                confirmMessage += '. This action cannot be undone.';
-
-                if (!window.confirm(confirmMessage)) return;
-
+                if (!window.confirm(`Delete team "${teamName}"? This action cannot be undone.`)) return;
+                saveStateToHistory();
                 const updatedTeams = userTeams.filter(team => team !== teamName);
                 setUserTeams(updatedTeams);
-
-                const updatedTeamsData = {...allTeamsData};
+                const updatedTeamsData = { ...allTeamsData };
                 delete updatedTeamsData[teamName];
                 setAllTeamsData(updatedTeamsData);
-
-                const updatedLeaveRecords = {...allLeaveRecords};
+                const updatedLeaveRecords = { ...allLeaveRecords };
                 delete updatedLeaveRecords[teamName];
                 setAllLeaveRecords(updatedLeaveRecords);
-
-                const updatedMetadata = {...teamsMetadata};
+                const updatedMetadata = { ...teamsMetadata };
                 delete updatedMetadata[teamName];
                 setTeamsMetadata(updatedMetadata);
-
                 if (selectedTeamName === teamName) {
-                    if (updatedTeams.length > 0) {
-                        setSelectedTeamName(updatedTeams[0]);
-                    } else {
-                        setSelectedTeamName('');
-                        setCurrentView('welcome');
-                    }
+                    setSelectedTeamName(updatedTeams.length > 0 ? updatedTeams[0] : '');
+                    setCurrentView(updatedTeams.length > 0 ? 'teamDashboard' : 'welcome');
                 }
             };
 
             // Member Management
             const addNewMember = () => {
-                const errors = validateMemberForm(newMember);
-                if (Object.keys(errors).length > 0) {
-                    setFormErrors(errors);
-                    return;
+                const teamData = getCurrentTeamData();
+                const placeholderIndex = teamData.findIndex(m => m.isPlaceholder && m.login === newMember.login);
+
+                saveStateToHistory();
+
+                if (placeholderIndex !== -1) {
+                    const updatedTeamData = [...teamData];
+                    const placeholder = updatedTeamData[placeholderIndex];
+                    updatedTeamData[placeholderIndex] = { ...placeholder, name: newMember.name, level: newMember.level, workGroup: newMember.workGroup, manager: newMember.manager.trim() || placeholder.manager, isPlaceholder: false };
+                    setAllTeamsData({ ...allTeamsData, [selectedTeamName]: updatedTeamData });
+                } else {
+                    const errors = validateMemberForm(newMember);
+                    if (Object.keys(errors).length > 0) {
+                        setFormErrors(errors);
+                        return;
+                    }
+                    let currentTeamData = teamData;
+                    if (newMember.manager && newMember.manager.trim()) {
+                        currentTeamData = createPlaceholderManager(newMember.manager.trim(), currentTeamData);
+                    }
+                    const member = { id: Date.now(), ...newMember, manager: newMember.manager.trim() || '', weeklyOffs: [6] };
+                    const newTeamData = [...currentTeamData, member];
+                    setAllTeamsData({ ...allTeamsData, [selectedTeamName]: newTeamData });
                 }
-
-                let currentTeamData = getCurrentTeamData();
-
-                // Create placeholder manager if needed
-                if (newMember.manager && newMember.manager.trim()) {
-                    currentTeamData = createPlaceholderManager(newMember.manager.trim(), currentTeamData);
-                }
-
-                const member = {
-                    id: Date.now(),
-                    name: newMember.name,
-                    login: newMember.login,
-                    level: newMember.level,
-                    workGroup: newMember.workGroup,
-                    manager: newMember.manager.trim() || '',
-                    weeklyOffs: [6]
-                };
-
-                const newTeamData = [...currentTeamData, member];
-                setAllTeamsData({
-                    ...allTeamsData,
-                    [selectedTeamName]: newTeamData
-                });
-
-                setNewMember({name: '', login: '', level: '', workGroup: '', manager: ''});
+                setNewMember({ name: '', level: '', workGroup: '', manager: '', login: '' });
                 setShowAddForm(false);
                 setFormErrors({});
             };
 
             const handleEditClick = (member) => {
-                setMemberToEdit({ ...member }); // Make a copy to avoid direct state mutation
+                setMemberToEdit({ ...member });
                 setShowEditMemberModal(true);
             };
 
             const handleUpdateMember = () => {
-                const errors = validateMemberForm(memberToEdit, true); // Pass true for isEdit
+                const errors = validateMemberForm(memberToEdit, true);
                 if (Object.keys(errors).length > 0) {
                     setFormErrors(errors);
                     return;
                 }
-
-                let currentTeamData = [...getCurrentTeamData()]; // Create a mutable copy
-
+                saveStateToHistory();
+                let currentTeamData = [...getCurrentTeamData()];
                 const memberIndex = currentTeamData.findIndex(m => m.id === memberToEdit.id);
                 if (memberIndex === -1) {
                     alert('Error: Member not found for update.');
                     return;
                 }
-
-                // If login ID changed, update reports' manager fields
                 const oldLogin = currentTeamData[memberIndex].login;
                 if (oldLogin !== memberToEdit.login) {
-                    currentTeamData = currentTeamData.map(m =>
-                        m.manager === oldLogin ? { ...m, manager: memberToEdit.login } : m
-                    );
+                    currentTeamData = currentTeamData.map(m => m.manager === oldLogin ? { ...m, manager: memberToEdit.login } : m);
                 }
-
-                // Update the member's details
-                currentTeamData[memberIndex] = {
-                    ...memberToEdit,
-                    isPlaceholder: false // An edited member is no longer a placeholder
-                };
-
-                // Handle manager of the edited member: create placeholder if new manager doesn't exist
+                currentTeamData[memberIndex] = { ...memberToEdit, isPlaceholder: false };
                 if (memberToEdit.manager && memberToEdit.manager.trim()) {
                     const managerLogin = memberToEdit.manager.trim();
                     const managerExists = currentTeamData.some(m => m.login === managerLogin);
@@ -713,17 +607,11 @@
                         currentTeamData = createPlaceholderManager(managerLogin, currentTeamData);
                     }
                 }
-
-                setAllTeamsData({
-                    ...allTeamsData,
-                    [selectedTeamName]: currentTeamData
-                });
-
+                setAllTeamsData({ ...allTeamsData, [selectedTeamName]: currentTeamData });
                 setShowEditMemberModal(false);
                 setMemberToEdit(null);
                 setFormErrors({});
             };
-
 
             const handleDeleteClick = (memberId) => {
                 const member = getCurrentTeamData().find(m => m.id === memberId);
@@ -735,39 +623,27 @@
 
             const confirmDeleteMember = () => {
                 if (!memberToDelete) return;
-
+                saveStateToHistory();
                 let teamData = getCurrentTeamData();
-                const loginsToRemove = new Set();
-                const initialLogin = memberToDelete.login;
-                
-                loginsToRemove.add(initialLogin);
-                
+                const loginsToRemove = new Set([memberToDelete.login]);
                 let changed = true;
                 while (changed) {
                     changed = false;
-                    const beforeSize = loginsToRemove.size;
+                    const initialSize = loginsToRemove.size;
                     teamData.forEach(m => {
                         if (m.manager && loginsToRemove.has(m.manager)) {
                             loginsToRemove.add(m.login);
                         }
                     });
-                    if (loginsToRemove.size > beforeSize) {
-                        changed = true;
-                    }
+                    if (loginsToRemove.size > initialSize) changed = true;
                 }
-                
                 const updatedMembers = teamData.filter(m => !loginsToRemove.has(m.login));
-                
-                const membersBeforeDelete = [...teamMembers];
                 const updatedLeaveRecords = getCurrentLeaveRecords().filter(leave => {
-                    const employeeLogin = membersBeforeDelete.find(m => m.name === leave.employee)?.login;
-                    return employeeLogin && !loginsToRemove.has(employeeLogin);
+                    const employee = teamData.find(m => m.name === leave.employee);
+                    return !employee || !loginsToRemove.has(employee.login);
                 });
-
                 setAllTeamsData({ ...allTeamsData, [selectedTeamName]: updatedMembers });
                 setAllLeaveRecords({ ...allLeaveRecords, [selectedTeamName]: updatedLeaveRecords });
-
-                // Close modal and reset state
                 setShowDeleteConfirmModal(false);
                 setMemberToDelete(null);
             };
@@ -778,152 +654,58 @@
                     alert('Please fill in required fields: Employee and From Date');
                     return;
                 }
-
-                // If single day leave, set to date same as from date
                 const toDate = newLeave.isSingleDay ? newLeave.from : newLeave.to;
-
                 if (!toDate) {
                     alert('Please select To Date or check Single Day option');
                     return;
                 }
-
-                const leave = {
-                    id: Date.now(),
-                    ...newLeave,
-                    to: toDate,
-                    appliedAt: new Date().toISOString().split('T')[0]
-                };
-
+                saveStateToHistory();
+                const leave = { id: Date.now(), ...newLeave, to: toDate, appliedAt: new Date().toISOString().split('T')[0] };
                 const newLeaveRecords = [...getCurrentLeaveRecords(), leave];
-                setAllLeaveRecords({
-                    ...allLeaveRecords,
-                    [selectedTeamName]: newLeaveRecords
-                });
-
-                setNewLeave({
-                    employee: '',
-                    type: 'Vacation',
-                    from: '',
-                    to: '',
-                    hours: 8,
-                    isSingleDay: false
-                });
+                setAllLeaveRecords({ ...allLeaveRecords, [selectedTeamName]: newLeaveRecords });
+                setNewLeave({ employee: '', type: 'Vacation', from: '', to: '', hours: 8, isSingleDay: false });
                 setShowLeaveForm(false);
             };
 
             const deleteLeave = (leaveId) => {
                 if (!window.confirm('Delete this leave record?')) return;
-
+                saveStateToHistory();
                 const updatedLeaves = getCurrentLeaveRecords().filter(leave => leave.id !== leaveId);
-                setAllLeaveRecords({
-                    ...allLeaveRecords,
-                    [selectedTeamName]: updatedLeaves
-                });
+                setAllLeaveRecords({ ...allLeaveRecords, [selectedTeamName]: updatedLeaves });
             };
 
-            // Function to calculate leave summary statistics
             const calculateLeaveSummaryStatistics = (allTeamMembers, teamLeaveRecords) => {
-                const summary = {
-                    byType: {},
-                    current: [],
-                    upcoming: [],
-                    totalMembersOnLeaveToday: 0
-                };
-                const today = new Date();
-                today.setHours(0, 0, 0, 0); // Normalize to start of day
-
-                const nextWeek = new Date();
-                nextWeek.setDate(today.getDate() + 7);
-                nextWeek.setHours(23, 59, 59, 999); // Normalize to end of day for upcoming range
-
-
-                const getDaysBetweenDates = (start, end, weeklyOffs = []) => {
-                    let count = 0;
-                    let currentDate = new Date(start);
-                    const endDate = new Date(end);
-
-                    while (currentDate <= endDate) {
-                        const dayOfWeek = currentDate.getDay(); // 0 for Sunday, 6 for Saturday
-                        if (!weeklyOffs.includes(dayOfWeek)) {
-                            count++;
-                        }
-                        currentDate.setDate(currentDate.getDate() + 1);
-                    }
-                    return count;
-                };
-
+                const summary = { byType: {}, current: [], upcoming: [], totalMembersOnLeaveToday: 0 };
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                const nextWeek = new Date(); nextWeek.setDate(today.getDate() + 7); nextWeek.setHours(23, 59, 59, 999);
                 const membersOnLeaveTodaySet = new Set();
-
                 teamLeaveRecords.forEach(leave => {
-                    // Calculate days for summary byType
-                    let days = 0;
                     const employee = allTeamMembers.find(m => m.name === leave.employee);
-                    const weeklyOffs = employee ? employee.weeklyOffs : [6]; // Default to Saturday if not found
-
-                    const leaveFromDate = new Date(leave.from + 'T00:00:00'); // Add time to avoid timezone issues
-                    const leaveToDate = new Date(leave.to + 'T23:59:59'); // Add time to include full day
-
-                    if (leave.isSingleDay) {
-                        if (leave.hours >= 8) {
-                            days = 1;
-                        } else if (leave.hours > 0) {
-                            days = 0.5; // Any partial hours count as 0.5 if not a full day
-                        } else {
-                            days = 0;
-                        }
-                    } else {
-                        days = getDaysBetweenDates(leave.from, leave.to, weeklyOffs);
-                    }
-
-                    if (!summary.byType[leave.type]) {
-                        summary.byType[leave.type] = { totalDays: 0, count: 0 };
-                    }
-                    summary.byType[leave.type].totalDays += days;
-                    summary.byType[leave.type].count++;
-
-                    // Filter for current and upcoming leaves for display
+                    const leaveFromDate = new Date(leave.from + 'T00:00:00');
+                    const leaveToDate = new Date(leave.to + 'T23:59:59');
                     const isCurrent = leaveFromDate <= today && leaveToDate >= today;
                     const isUpcoming = leaveFromDate > today && leaveFromDate <= nextWeek;
-
-                    const employeeLogin = employee ? employee.login : 'N/A';
-                    const managerOfEmployeeLogin = employee?.manager ? (allTeamMembers.find(m => m.login === employee.manager)?.login || 'N/A') : 'N/A';
-
-                    const leaveDetail = {
-                        ...leave,
-                        employeeLogin: employeeLogin,
-                        managerLogin: managerOfEmployeeLogin
-                    };
-
                     if (isCurrent) {
-                        summary.current.push(leaveDetail);
-                        membersOnLeaveTodaySet.add(leave.employee); // Track unique employees on leave today
+                        summary.current.push({ ...leave, employeeLogin: employee?.login, managerLogin: employee?.manager });
+                        membersOnLeaveTodaySet.add(leave.employee);
                     }
-                    if (isUpcoming) { // Make sure it's not also current
-                        summary.upcoming.push(leaveDetail);
+                    if (isUpcoming) {
+                        summary.upcoming.push({ ...leave, employeeLogin: employee?.login, managerLogin: employee?.manager });
                     }
                 });
-
                 summary.totalMembersOnLeaveToday = membersOnLeaveTodaySet.size;
-
                 return summary;
             };
-
-            // Template Downloads
+            
             const downloadLeaveTemplate = () => {
                 const templateData = [
                     ['Employee', 'Type', 'From', 'To', 'Hours'],
                     ['John Doe', 'Vacation', '2025-07-15', '2025-07-20', '40'],
                     ['Jane Smith', 'Sick', '2025-07-18', '2025-07-18', '8']
                 ];
-
-                const csv = Papa.unparse({
-                    fields: templateData[0],
-                    data: templateData.slice(1)
-                });
-
-                const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+                const csv = Papa.unparse(templateData);
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
-
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = 'leave-template.csv';
@@ -936,20 +718,12 @@
             const downloadTeamTemplate = () => {
                 const templateData = [
                     ['Name', 'Login', 'Level', 'WorkGroup', 'Manager'],
-                    ['John Doe', 'john.doe@company.com', 'L6', 'Engineering', ''],
-                    ['Jane Smith', 'jane.smith@company.com', 'L5', 'Engineering', 'john.doe@company.com'],
-                    ['Bob Wilson', 'bob.wilson@company.com', 'L4', 'Engineering', 'jane.smith@company.com'],
-                    ['Alice Brown', 'alice.brown@company.com', 'L4', 'Engineering', 'jane.smith@company.com']
+                    ['John Doe', 'john.doe', 'L6', 'Engineering', ''],
+                    ['Jane Smith', 'jane.smith', 'L5', 'Engineering', 'john.doe']
                 ];
-
-                const csv = Papa.unparse({
-                    fields: templateData[0],
-                    data: templateData.slice(1)
-                });
-
-                const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+                const csv = Papa.unparse(templateData);
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
-
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = 'team-template.csv';
@@ -959,32 +733,30 @@
                 URL.revokeObjectURL(url);
             };
 
-            // Export/Import
             const exportData = () => {
-                let data = [];
+                let dataToExport = [];
                 const leaves = getCurrentLeaveRecords();
+                const teamData = getCurrentTeamData();
 
                 if (exportDateRange.start && exportDateRange.end) {
                     const startDate = new Date(exportDateRange.start);
                     const endDate = new Date(exportDateRange.end);
-
-                    data = leaves.filter(leave => {
+                    dataToExport = leaves.filter(leave => {
                         const fromDate = new Date(leave.from);
                         return fromDate >= startDate && fromDate <= endDate;
                     });
                 } else {
-                    data = leaves;
+                    dataToExport = leaves;
                 }
 
-                if (data.length === 0) {
+                if (dataToExport.length === 0) {
                     alert("No data to export for the selected range.");
                     return;
                 }
 
                 if (exportFormat === 'json') {
-                    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
-
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = `leave-records-${selectedTeamName}-${new Date().toISOString().slice(0, 10)}.json`;
@@ -993,21 +765,24 @@
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                 } else {
-                    // CSV export
-                    const csv = Papa.unparse({
-                        fields: ['Employee', 'Type', 'From', 'To', 'Hours'],
-                        data: data.map(leave => [
-                            leave.employee,
-                            leave.type,
-                            leave.from,
-                            leave.to,
-                            leave.hours
-                        ])
+                    const csvData = dataToExport.map(leave => {
+                        const employee = teamData.find(m => m.name === leave.employee) || {};
+                        return {
+                            'Employee': leave.employee,
+                            'Login': employee.login || 'N/A',
+                            'WorkGroup': employee.workGroup || 'N/A',
+                            'Manager': employee.manager || 'N/A',
+                            'Type': leave.type,
+                            'From': leave.from,
+                            'To': leave.to,
+                            'Hours': leave.hours
+                        };
                     });
-
-                    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+                    const csv = Papa.unparse(csvData, {
+                        fields: ['Employee', 'Login', 'WorkGroup', 'Manager', 'Type', 'From', 'To', 'Hours']
+                    });
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                     const url = URL.createObjectURL(blob);
-
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = `leave-records-${selectedTeamName}-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -1016,10 +791,97 @@
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                 }
-
                 setShowExportModal(false);
             };
 
+            const exportTeamData = () => {
+                const teamData = getCurrentTeamData().filter(member => !member.isPlaceholder);
+                if (teamData.length === 0) {
+                    alert("No team members to export.");
+                    return;
+                }
+                const csv = Papa.unparse({
+                    fields: ['Name', 'Login', 'Level', 'WorkGroup', 'Manager'],
+                    data: teamData.map(member => [
+                        member.name,
+                        member.login,
+                        member.level,
+                        member.workGroup || '',
+                        member.manager || ''
+                    ])
+                });
+
+                const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `team-${selectedTeamName}-${new Date().toISOString().slice(0, 10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            };
+            
+            const handleTeamFileImport = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        if(results.errors.length > 0) {
+                             alert(`Error parsing CSV: ${results.errors[0].message}`);
+                             return;
+                        }
+                        const importedData = results.data.map(record => ({
+                            name: record.Name || '',
+                            login: record.Login || '',
+                            level: record.Level || '',
+                            workGroup: record.WorkGroup || '',
+                            manager: record.Manager || ''
+                        }));
+
+                        setImportedTeamData(importedData);
+                        setShowTeamImportModal(true);
+                    },
+                    error: function(error) {
+                        console.error('Error parsing CSV:', error);
+                        alert('Failed to parse CSV file. Please check the format.');
+                    }
+                });
+                e.target.value = null; // Reset file input
+            };
+            
+            const confirmTeamImport = () => {
+                saveStateToHistory();
+                let currentTeamData = [...getCurrentTeamData()];
+                let membersToProcess = [...importedTeamData];
+                membersToProcess.forEach(importedMember => {
+                    if (!importedMember.login) return;
+                    const existingMemberIndex = currentTeamData.findIndex(m => m.login === importedMember.login);
+                    if (existingMemberIndex !== -1) {
+                        currentTeamData[existingMemberIndex] = { ...currentTeamData[existingMemberIndex], ...importedMember, isPlaceholder: false };
+                    } else {
+                        currentTeamData.push({ ...importedMember, id: Date.now() + Math.random(), isPlaceholder: false, weeklyOffs: [6] });
+                    }
+                });
+                membersToProcess.forEach(importedMember => {
+                    if (importedMember.manager && importedMember.manager.trim()) {
+                        const managerLogin = importedMember.manager.trim();
+                        const managerExists = currentTeamData.some(m => m.login === managerLogin);
+                        if (!managerExists) {
+                            currentTeamData.push({ id: Date.now() + Math.random(), name: `Manager (${managerLogin})`, login: managerLogin, level: 'TBD', workGroup: 'TBD', manager: '', isPlaceholder: true, weeklyOffs: [6] });
+                        }
+                    }
+                });
+                setAllTeamsData({ ...allTeamsData, [selectedTeamName]: currentTeamData });
+                setShowTeamImportModal(false);
+                setImportedTeamData([]);
+                alert(`${importedTeamData.length} team members processed successfully!`);
+            };
+            
             const handleFileImport = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -1051,138 +913,18 @@
             };
 
             const confirmImport = () => {
+                saveStateToHistory();
                 const newLeaveRecords = [...getCurrentLeaveRecords(), ...importedLeaveData];
-                setAllLeaveRecords({
-                    ...allLeaveRecords,
-                    [selectedTeamName]: newLeaveRecords
-                });
-
+                setAllLeaveRecords({ ...allLeaveRecords, [selectedTeamName]: newLeaveRecords });
                 setShowImportModal(false);
                 setImportedLeaveData([]);
                 alert(`${importedLeaveData.length} leave records imported successfully!`);
             };
 
-            const handleTeamFileImport = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                Papa.parse(file, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        if(results.errors.length > 0) {
-                             alert(`Error parsing CSV: ${results.errors[0].message}`);
-                             return;
-                        }
-                        const importedData = results.data.map(record => ({
-                            name: record.Name || '',
-                            login: record.Login || '',
-                            level: record.Level || '',
-                            workGroup: record.WorkGroup || '',
-                            manager: record.Manager || ''
-                        }));
-
-                        setImportedTeamData(importedData);
-                        setShowTeamImportModal(true);
-                    },
-                    error: function(error) {
-                        console.error('Error parsing CSV:', error);
-                        alert('Failed to parse CSV file. Please check the format.');
-                    }
-                });
-                e.target.value = null; // Reset file input
-            };
-
-            const confirmTeamImport = () => {
-                let currentTeamData = [...getCurrentTeamData()]; // Create a mutable copy
-                
-                let membersToProcess = [...importedTeamData];
-
-                membersToProcess.forEach(importedMember => {
-                    if(!importedMember.login) return; // Skip rows without a login
-                    
-                    const existingMemberIndex = currentTeamData.findIndex(m => m.login === importedMember.login);
-
-                    if (existingMemberIndex !== -1) {
-                         // Overwrite existing member (placeholder or not) with imported data
-                         currentTeamData[existingMemberIndex] = {
-                            ...currentTeamData[existingMemberIndex],
-                            ...importedMember,
-                            isPlaceholder: false
-                        };
-                    } else {
-                        // New member, add it
-                        currentTeamData.push({
-                            ...importedMember,
-                            id: Date.now() + Math.random(),
-                            isPlaceholder: false,
-                            weeklyOffs: [6]
-                        });
-                    }
-                });
-                
-                // Second pass to ensure all managers exist, creating placeholders if needed
-                membersToProcess.forEach(importedMember => {
-                     if (importedMember.manager && importedMember.manager.trim()) {
-                        const managerLogin = importedMember.manager.trim();
-                        const managerExists = currentTeamData.some(m => m.login === managerLogin);
-                        if (!managerExists) {
-                            currentTeamData.push({
-                                id: Date.now() + Math.random(),
-                                name: `Manager (${managerLogin})`,
-                                login: managerLogin,
-                                level: 'TBD',
-                                workGroup: 'TBD',
-                                manager: '',
-                                isPlaceholder: true,
-                                weeklyOffs: [6]
-                            });
-                        }
-                    }
-                });
-
-                setAllTeamsData({
-                    ...allTeamsData,
-                    [selectedTeamName]: currentTeamData
-                });
-
-                setShowTeamImportModal(false);
-                setImportedTeamData([]);
-                alert(`${importedTeamData.length} team members processed successfully!`);
-            };
-
-            const exportTeamData = () => {
-                const teamData = getCurrentTeamData().filter(member => !member.isPlaceholder);
-                const csv = Papa.unparse({
-                    fields: ['Name', 'Login', 'Level', 'WorkGroup', 'Manager'],
-                    data: teamData.map(member => [
-                        member.name,
-                        member.login,
-                        member.level,
-                        member.workGroup,
-                        member.manager || ''
-                    ])
-                });
-
-                const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-                const url = URL.createObjectURL(blob);
-
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `team-${selectedTeamName}-${new Date().toISOString().slice(0, 10)}.csv`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            };
-            
-            // Helper to get all reports under a manager recursively
             const getReportingChain = (managerLogin) => {
                 const teamData = getCurrentTeamData();
                 const chain = new Set();
-                
                 let toProcess = [managerLogin];
-                
                 while (toProcess.length > 0) {
                     const currentLogin = toProcess.pop();
                     const directReports = teamData.filter(m => m.manager === currentLogin);
@@ -1201,9 +943,8 @@
             const teamMetadata = teamsMetadata[selectedTeamName] || {};
             const teamMembers = getCurrentTeamData();
             const filteredLeaves = getFilteredLeaves();
-            const summaryStats = calculateLeaveSummaryStatistics(teamMembers, getCurrentLeaveRecords()); // Use the new summary function
+            const summaryStats = calculateLeaveSummaryStatistics(teamMembers, getCurrentLeaveRecords());
             const reportsOfMemberToDelete = memberToDelete ? getReportingChain(memberToDelete.login) : [];
-            
             const membersOnLeaveToday = new Set(summaryStats.current.map(l => l.employee));
 
             // View Rendering
@@ -1214,9 +955,8 @@
                             <div className="row justify-content-center">
                                 <div className="col-lg-8">
                                     <div className="text-center text-white mb-5">
-                                        <h1 className="display-4 fw-bold mb-3">🏢 Leave Management System</h1>
+                                        <h1 className="display-4 fw-bold mb-3">🏢Leave Management System</h1>
                                         <p className="lead mb-4"> Advanced team management with hierarchy tracking and leave planning </p>
-                                        {/* Back button when teams exist */}
                                         {userTeams.length > 0 && (
                                             <button className="btn btn-outline-light" onClick={() => setCurrentView('teamSelect')} >
                                                 <i className="fas fa-arrow-left me-2"></i> Select Existing Team
@@ -1252,11 +992,11 @@
                                             <div className="row g-3 mb-4">
                                                 <div className="col-md-6">
                                                     <label className="form-label fw-bold">Team Name *</label>
-                                                    <input type="text" className="form-control" placeholder="e.g., Team Name" value={newTeam.name} onChange={(e) => setNewTeam({...newTeam, name: e.target.value})} />
+                                                    <input type="text" className="form-control" placeholder="e.g.,Team Name" value={newTeam.name} onChange={(e) => setNewTeam({...newTeam, name: e.target.value})} />
                                                 </div>
                                                 <div className="col-md-6">
                                                     <label className="form-label fw-bold">Dashboard Title *</label>
-                                                    <input type="text" className="form-control" value={newTeam.title} onChange={(e) => setNewTeam({...newTeam, title: e.target.value})} placeholder="e.g., Dashboard Name" />
+                                                    <input type="text" className="form-control" value={newTeam.title} onChange={(e) => setNewTeam({...newTeam, title: e.target.value})} placeholder="e.g.,Dashboard Name" />
                                                 </div>
                                             </div>
                                             <div className="mb-4">
@@ -1377,10 +1117,13 @@
                                     </small>
                                 </div>
                             </div>
-                            <div className="d-flex align-items-center">
+                            <div className="d-flex align-items-center gap-2">
                                 <span className="text-light me-3 d-none d-md-block">
-                                    <i className="fas fa-user me-1"></i>{currentUser}
+                                    <i className="fas fa-user me-1"></i>{currentUser.name} ({currentUser.login})
                                 </span>
+                                <button onClick={handleUndo} className="btn btn-sm btn-outline-warning" disabled={history.length === 0} title="Undo last action">
+                                    <i className="fas fa-undo"></i> Undo
+                                </button>
                                 <button onClick={() => setIsEditMode(!isEditMode)} className={`btn btn-sm ${isEditMode ? 'btn-success' : 'btn-outline-light'}`} >
                                     {isEditMode ? '✅ Done' : '✏️ Edit'}
                                 </button>
@@ -1626,21 +1369,28 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {filteredLeaves.map(leave => (
-                                                    <tr key={leave.id}>
-                                                        <td>{leave.employee}</td>
-                                                        <td><span className={`badge bg-${leave.type === 'Vacation' ? 'info' : leave.type === 'Sick' ? 'warning' : 'secondary'}`}>{leave.type}</span></td>
-                                                        <td>{formatDateForDisplay(leave.from)}</td>
-                                                        <td>{formatDateForDisplay(leave.to)}</td>
-                                                        <td>{leave.hours < 8 ? `${leave.hours} hrs` : ''}</td>
-                                                        <td>{formatDateForDisplay(leave.appliedAt)}</td>
-                                                        <td>
-                                                            <button className="btn btn-sm btn-outline-danger" onClick={() => deleteLeave(leave.id)}>
-                                                                <i className="fas fa-trash-alt"></i>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {filteredLeaves.map(leave => {
+                                                    const employee = teamMembers.find(m => m.name === leave.employee);
+                                                    const canDelete = employee && employee.manager === currentUser.login;
+
+                                                    return (
+                                                        <tr key={leave.id}>
+                                                            <td>{leave.employee}</td>
+                                                            <td><span className={`badge bg-${leave.type === 'Vacation' ? 'info' : leave.type === 'Sick' ? 'warning' : 'secondary'}`}>{leave.type}</span></td>
+                                                            <td>{formatDateForDisplay(leave.from)}</td>
+                                                            <td>{formatDateForDisplay(leave.to)}</td>
+                                                            <td>{leave.hours < 8 ? `${leave.hours} hrs` : ''}</td>
+                                                            <td>{formatDateForDisplay(leave.appliedAt)}</td>
+                                                            <td>
+                                                                {canDelete && (
+                                                                    <button className="btn btn-sm btn-outline-danger" onClick={() => deleteLeave(leave.id)}>
+                                                                        <i className="fas fa-trash-alt"></i>
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>
